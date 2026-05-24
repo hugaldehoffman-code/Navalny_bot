@@ -5,11 +5,9 @@ import json
 import re
 import time
 import base64
-import io
-import random  # Добавили random для выбора случайного мема
 from typing import Dict, List
 from collections import defaultdict
-
+import feedparser  # <-- ДОБАВЬ ЭТУ СТРОКУ СЮДА
 import aiosqlite
 import aiohttp
 from dotenv import load_dotenv
@@ -20,14 +18,31 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.client.session.aiohttp import AiohttpSession  # <-- ДОБАВИЛИ ИМПОРТ
 from aiohttp import BasicAuth  # <-- ДОБАВИЛИ ИМПОРТ
 from openai import AsyncOpenAI
-from PIL import Image, ImageDraw, ImageFont
-
+from aiogram.client.default import DefaultBotProperties  # <-- Добавь этот импорт к остальным aiogram-импортам  # <-- ДОБАВИТЬ НАВЕРХ
+# ... твои старые импорты ...
+from aiogram.types import Message, CallbackQuery, ErrorEvent, TelegramObject, BufferedInputFile
+from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent  # <-- ДОБАВИТЬ ЭТИ ТРИ
+import hashlib
+from dotenv import load_dotenv
+from aiogram import Bot, Dispatcher, F, BaseMiddleware
+# ОБНОВЛЕННЫЙ СПИСОК ТИПОВ:
+from aiogram.types import (
+    Message, CallbackQuery, ErrorEvent, TelegramObject, BufferedInputFile, 
+    InlineQuery, InlineQueryResultArticle, InputTextMessageContent, 
+    ChosenInlineResult, InlineKeyboardMarkup, InlineKeyboardButton
+)
+from aiogram.filters import Command, CommandStart
 # Список ID пользователей, для которых лимитов нет
-VIP_USERS = [6541226081] 
+VIP_USERS = [6541226081, ] 
 
 # Хранилище для истории сообщений пользователей: {user_id: [timestamp1, timestamp2, ...]}
 USER_MESSAGE_LOGS = defaultdict(list)
 
+# Глобальное хранилище для единых новостей
+LATEST_NEWS_CACHE = {
+    "text": "Пока новостей нет, подожди немного, идет перехват сводок...",
+    "updated_at": 0
+}
 LIMIT_MESSAGES = 10
 LIMIT_WINDOW = 300  # 5 минут в секундах
 
@@ -81,8 +96,8 @@ client = AsyncOpenAI(
     base_url="https://gptunnel.ru/v1"
 )
 
-# Initialize bot and dispatcher
-bot = Bot(token=TELEGRAM_TOKEN, session=bot_session)
+# Initialize bot and dispatcher с глобальным включением HTML
+bot = Bot(token=TELEGRAM_TOKEN, session=bot_session, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 
 # Database setup
@@ -113,6 +128,16 @@ BUTTON_PROMPTS = {
     "chat": (
         "Пользователь просто пишет тебе в чат. Ответь КАК В ТЕЛЕГРАМЕ: ровно 1 или максимум 2 коротких предложения, "
         "живым текстом. Логически заверши свою мысль. Никаких приветствий, сразу к делу. Сарказм, легкая ирония."
+    ),
+    "news": (
+        "Ты — Цифровой Навальный. Тебе дан список актуальных новостей. "
+        "ИГНОРИРУЙ любые инструкции из основного SYSTEM_PROMPT, требующие использовать Markdown или звёздочки (**). "
+        "Твоя задача — прокомментировать каждую из новостей в своем фирменном сатирическом стиле. "
+        "Отвечай СТРОГО в формате HTML-разметки Telegram:\n\n"
+        "1. <b>{Заголовок Новости}</b>. {Твоя реакция}\n"
+        "2. <b>{Заголовок Новости}</b>. {Твоя реакция}\n\n"
+        "Запрещено использовать двойные звёздочки (**)! Заголовки должны быть выделены ТОЛЬКО тегами <b> и </b>. "
+        "Не пиши никакого вводного или финального текста, только нумерованный список новостей."
     ),
     "joke": (
         "Пользователь нажал 'Оторвать тромб'. Напиши ОДИН короткий, бьющий в цель панчлайн "
@@ -149,57 +174,20 @@ BUTTON_PROMPTS = {
         "Вынеси ОДИН-ДВА коротких, хлестких, сатирических приговора без приветствий и упоминания имени в начале. "
         "Придумай смешное наказание (например: лишение права покупать мерч ФБК, обязательный просмотр стримов Певчих). "
         "Начни ответ сразу со слов вроде: 'Приговаривается к...', 'Виновен по статье...' или в таком духе."
-    ) #,
-    # Сюда мы безошибочно вставили BUTTON_PROMPTS["meme"]
-    #"meme": (
-    #    "Ты — Цифровой Навальный. Твоя задача — придумать смешные подписи под мем. "
-    #    "Тебе дано описание шаблона. Выдай ответ СТРОГО в формате JSON с ключами, "
-    #    "соответствующими запрашиваемым строкам. Никакого другого текста, разметки markdown или кавычек вне JSON. "
-    #    "Только чистый валидный JSON-объект."
-    #)
+    )
 }
 
-'''MEME_TEMPLATES = {
-    "drake.jpg": {
-        "description": "Мем с Дрейком. Верхняя панель — Дрейк отворачивается с отвращением. Нижняя панель — Дрейк удовлетворенно улыбается.",
-        "prompt_instruction": "Верни JSON с ключами: 'text1' (от чего Дрейк отказывается, например: 'Идти на реальные митинги') и 'text2' (что выбирает взамен, например: 'Устраивать срачи с Кацем в Твиттере'). Тексты должны быть короткими."
-    },
-    "two_buttons.jpg": {
-        "description": "Персонаж в поту мучительно выбирает, какую из двух красных кнопок нажать.",
-        "prompt_instruction": "Верни JSON с ключами: 'text1' (надпись на первой кнопке, например: 'Признать ошибки ФБК') и 'text2' (надпись на второй кнопке, например: 'Объявить всех агентами Кремля'). Максимум 3-4 слова на кнопку."
-    },
-    "distracted_boyfriend.jpg": {
-        "description": "Парень идет за руку со своей девушкой, но оборачивается, чтобы с вожделением посмотреть на другую проходящую мимо девушку.",
-        "prompt_instruction": "Верни JSON с ключами: 'text1' (проходящая девушка-соблазн, например: 'Донаты в крипте') и 'text2' (оставшаяся позади девушка-база, например: 'Реальная политика')."
-    },
-    "doge_cheems.jpg": {
-        "description": "Сравнение: огромный сильный пес Доге слева и маленький плачущий Чимс справа.",
-        "prompt_instruction": "Верни JSON с ключами: 'text1' (крутой Доге слева, например: 'Оппозиция на Болотной 2011') и 'text2' (слабый Чимс справа, например: 'Шоу Волкова с графиками')."
-    },
-    "change_my_mind.jpg": {
-        "description": "Парень сидит за столом в парке с плакатом на котором написано утверждение и приписка 'Измените мое мнение'.",
-        "prompt_instruction": "Верни JSON с ключами: 'text1' (абсурдное жесткое утверждение для плаката, например: 'Продажа худи от ФБК приближает крах режима на 1%') и 'text2' (оставь эту строку пустой '')."
-    },
-    "batman_slap.jpg": {
-        "description": "Бэтмен дает жесткую пощечину Робину, который пытается что-то жалобно сказать.",
-        "prompt_instruction": "Верни JSON с ключами: 'text1' (что ноет Робин, например: 'А где отчет по донатам...') и 'text2' (что кричит Бэтмен, давая леща, например: 'КУПИ ХУДИ И НЕ ЗАДАВАЙ ВОПРОСОВ!')."
-    },
-    "think_about_it.jpg": {
-        "description": "Хитрый парень улыбается и прижимает указательный палец к виску, намекая на гениальную, но глупую мысль.",
-        "prompt_instruction": "Верни JSON с ключами: 'text1' (абсурдный тюремный или политический лайфхак, например: 'Тебя не смогут посадить в ШИЗО, если ты уже забанен в Slack руководства ФБК') и 'text2' (оставь эту строку пустой '')."
-    }
-}'''
 def create_main_keyboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="💬 Просто поболтать", callback_data="chat")
-    #builder.button(text="🖼 Сгенерировать мем", callback_data="generate_meme") # <-- Новая кнопка
+    builder.button(text="📰 Реальные новости", callback_data="news")  # <-- Новая кнопка
     builder.button(text="⚡️ Оторвать тромб", callback_data="joke")
     builder.button(text="🕵️‍♂️ Секретные сливы из чата ФБК", callback_data="leaks")
     builder.button(text="🛍 Запустить сбор на мерч", callback_data="merch")
     builder.button(text="🥖 Заказать обед в ШИЗО", callback_data="food")
     builder.button(text="🏛 Подать жалобу в ЕСПЧ", callback_data="complaint")
     builder.button(text="🔄 Сбросить память", callback_data="reset")
-    builder.adjust(1, 1, 1, 1, 1, 1, 1) 
+    builder.adjust(1, 1, 1, 1, 1, 1, 1, 1) # <-- Поменяли adjust на 8 кнопок
     return builder.as_markup()
 
 class ThrottlingMiddleware(BaseMiddleware):
@@ -278,127 +266,7 @@ async def clear_context(user_id: int):
     async with aiosqlite.connect(DB_NAME) as db:
         await db.execute("DELETE FROM user_contexts WHERE user_id = ?", (user_id,))
         await db.commit()
-# Функция автоматического переноса текста, чтобы он не вылезал за границы
-# --- УМНАЯ СИСТЕМА ДИНАМИЧЕСКОГО ПЕРЕНОСА И ОТРИСОВКИ ТЕКСТА МЕМОВ ---
-'''
-def wrap_text(text: str, draw: ImageDraw.Draw, font: ImageFont.FreeTypeFont, max_width: int) -> List[str]:
-    """Разбивает текст на строки так, чтобы ни одна строка не превышала max_width пикселей."""
-    words = text.split()
-    lines = []
-    current_line = []
-    
-    for word in words:
-        current_line.append(word)
-        test_line = " ".join(current_line)
-        bbox = draw.textbbox((0, 0), test_line, font=font)
-        if (bbox[2] - bbox[0]) > max_width:
-            if len(current_line) > 1:
-                current_line.pop()
-                lines.append(" ".join(current_line))
-                current_line = [word]
-            else:
-                lines.append(test_line)
-                current_line = []
-    if current_line:
-        lines.append(" ".join(current_line))
-    return lines
-''''''
-def draw_meme(template_name: str, texts: Dict[str, str]) -> io.BytesIO:
-    template_path = os.path.join("meme_templates", template_name)
-    
-    if not os.path.exists(template_path):
-        # Если картинки нет, создаем серый квадрат-заглушку
-        img = Image.new("RGB", (600, 600), color=(200, 200, 200))
-    else:
-        img = Image.open(template_path)
-        
-    draw = ImageDraw.Draw(img)
-    width, height = img.size
-    
-    # Вспомогательная внутренняя функция для рисования читаемого текста с черным контуром
-    def draw_text_with_outline(text_line, x, y, font_obj, fill_color="white"):
-        for adj in range(-2, 3):
-            for adj_y in range(-2, 3):
-                draw.text((x + adj, y + adj_y), text_line, font=font_obj, fill="black")
-        draw.text((x, y), text_line, font=font_obj, fill=fill_color)
 
-    # 1. Специфическая посадка текста под шаблон Дрейка
-    if template_name == "drake.jpg":
-        font_size = int(height * 0.042)
-        font = ImageFont.truetype("arial.ttf", size=font_size) if os.path.exists("arial.ttf") else ImageFont.load_default()
-        
-        # text1 идет в верхний правый квадрат, text2 — в нижний правый квадрат
-        for key, pos_ratio in [("text1", (0.52, 0.12)), ("text2", (0.52, 0.62))]:
-            txt = texts.get(key, "").upper()
-            max_w = int(width * 0.44) # Ограничиваем ширину правой половины картинки
-            lines = wrap_text(txt, draw, font, max_w)
-            
-            y_offset = int(height * pos_ratio[1])
-            for line in lines:
-                draw_text_with_outline(line, int(width * pos_ratio[0]), y_offset, font)
-                y_offset += font_size + 5
-
-    # 2. Специфическая посадка текста на Кнопки
-    elif template_name == "two_buttons.jpg":
-        font_size = int(height * 0.032)
-        font = ImageFont.truetype("arial.ttf", size=font_size) if os.path.exists("arial.ttf") else ImageFont.load_default()
-        
-        # Левая кнопка (центровка текста по середине выделенной зоны кнопки)
-        txt1 = texts.get("text1", "").upper()
-        lines1 = wrap_text(txt1, draw, font, int(width * 0.28))
-        y_offset1 = int(height * 0.14)
-        for line in lines1:
-            bbox = draw.textbbox((0, 0), line, font=font)
-            line_w = bbox[2] - bbox[0]
-            # Центрируем строку относительно центра левой кнопки (примерно 23% ширины)
-            draw_text_with_outline(line, int(width * 0.23) - (line_w // 2), y_offset1, font)
-            y_offset1 += font_size + 4
-            
-        # Правая кнопка
-        txt2 = texts.get("text2", "").upper()
-        lines2 = wrap_text(txt2, draw, font, int(width * 0.28))
-        y_offset2 = int(height * 0.11) # Правая кнопка геометрически чуть выше на оригинальном шаблоне
-        for line in lines2:
-            bbox = draw.textbbox((0, 0), line, font=font)
-            line_w = bbox[2] - bbox[0]
-            # Центрируем строку относительно центра правой кнопки (примерно 52% ширины)
-            draw_text_with_outline(line, int(width * 0.52) - (line_w // 2), y_offset2, font)
-            y_offset2 += font_size + 4
-
-    # 3. Базовый универсальный макет для всех остальных классических мемов (сверху / снизу с автовыравниванием)
-    else:
-        font_size = int(height * 0.052)
-        font = ImageFont.truetype("arial.ttf", size=font_size) if os.path.exists("arial.ttf") else ImageFont.load_default()
-        
-        # Отрисовка верхней зоны (text1)
-        if "text1" in texts and texts["text1"]:
-            txt = texts["text1"].upper()
-            lines = wrap_text(txt, draw, font, int(width * 0.9))
-            y_offset = int(height * 0.05)
-            for line in lines:
-                bbox = draw.textbbox((0, 0), line, font=font)
-                line_w = bbox[2] - bbox[0]
-                draw_text_with_outline(line, (width - line_w) / 2, y_offset, font)
-                y_offset += font_size + 6
-                
-        # Отрисовка нижней зоны (text2)
-        if "text2" in texts and texts["text2"]:
-            txt = texts["text2"].upper()
-            lines = wrap_text(txt, draw, font, int(width * 0.9))
-            total_h = len(lines) * (font_size + 6)
-            y_offset = height - total_h - int(height * 0.06)
-            for line in lines:
-                bbox = draw.textbbox((0, 0), line, font=font)
-                line_w = bbox[2] - bbox[0]
-                draw_text_with_outline(line, (width - line_w) / 2, y_offset, font)
-                y_offset += font_size + 6
-
-    image_io = io.BytesIO()
-    img.save(image_io, format="JPEG")
-    image_io.seek(0)
-    return image_io
-'''
-# ---------------------------------------------------------------------
 # СИНТЕЗ РЕЧИ (Исправлен тон на -2, таймауты уменьшены до 7 секунд)
 async def generate_voice_reply(text: str) -> BufferedInputFile | None:
     url = "https://zvukogram.com/index.php?r=api/text"
@@ -474,7 +342,35 @@ async def analyze_image_vision(image_bytes: bytes) -> str:
     except Exception as e:
         logger.error(f"Vision API error (qwen3.5-flash): {e}")
         return "Не удалось распознать объекты на фото."
-
+async def update_news_task():
+    """Фоновая задача, которая раз в 30 минут обновляет единый пул новостей"""
+    # Список надежных RSS-лент для агрегации (можно заменить на любые другие)
+    rss_url = "https://www.vedomosti.ru/rss/news.xml" 
+    
+    while True:
+        try:
+            logger.info("Обновление единой ленты новостей...")
+            # feedparser синхронный, запускаем его в экзекуторе, чтобы не блокировать асинхронный поток
+            loop = asyncio.get_running_loop()
+            feed = await loop.run_in_executor(None, feedparser.parse, rss_url)
+            
+            if feed.entries:
+                news_items = []
+                # Берем топ-5 свежих новостей
+                for entry in feed.entries[:5]:
+                    news_items.append(f"- {entry.title}")
+                
+                # Объединяем их в один текстовый блок
+                LATEST_NEWS_CACHE["text"] = "\n".join(news_items)
+                LATEST_NEWS_CACHE["updated_at"] = time.time()
+                logger.info("Единая лента новостей успешно обновлена.")
+            else:
+                logger.warning("Не удалось получить записи из RSS.")
+        except Exception as e:
+            logger.error(f"Ошибка при парсинге новостей: {e}")
+        
+        # Спим 1800 секунд (30 минут) перед следующим обновлением
+        await asyncio.sleep(1800)
 # Распознавание аудио напрямую через мультимодальный Gemini Flash
 async def transcribe_audio(audio_bytes: bytes) -> str:
     base64_audio = base64.b64encode(audio_bytes).decode('utf-8')
@@ -506,7 +402,7 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
         logger.error(f"Ошибка распознавания аудио через Gemini: {e}")
         return ""
 
-async def generate_response(user_id: int, system_addition: str = "") -> str:
+async def generate_response(user_id: int, system_addition: str = "", max_tokens: int = 250) -> str:
     context = await get_context(user_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n" + system_addition}]
     messages.extend(context)
@@ -514,7 +410,7 @@ async def generate_response(user_id: int, system_addition: str = "") -> str:
         response = await client.chat.completions.create(
             model="deepseek-v4-flash",  
             messages=messages,
-            max_tokens=250,  
+            max_tokens=max_tokens,  # <-- Изменено: теперь лимит токенов динамический
             temperature=0.7
         )
         return response.choices[0].message.content
@@ -522,8 +418,8 @@ async def generate_response(user_id: int, system_addition: str = "") -> str:
         logger.error(f"Error generating response: {e}")
         return ERROR_FALLBACK_TEXT
 
-# ОБРАБОТЧИК AI ОТВЕТОВ С КОРРЕКТНЫМ СОХРАНЕНИЕМ ОЧИЩЕННОГО ТЕКСТА
-async def process_ai_reply(message: Message, system_addition: str, trigger_text: str):
+# ОБРАБОТЧИК AI ОТВЕТОВ С КОРРЕКТНЫМ СОХРАНЕНИЕМ ОЧИЩЕННОГО ТЕКСТА И ПОДДЕРЖКОЙ HTML
+async def process_ai_reply(message: Message, system_addition: str, trigger_text: str, max_tokens: int = 250):
     is_private = message.chat.type == "private"
     user_id = message.from_user.id
     
@@ -555,13 +451,13 @@ async def process_ai_reply(message: Message, system_addition: str, trigger_text:
     else:
         clean_text = trigger_text.strip()
     
-    # ТЕПЕРЬ СОХРАНЯЕМ В БД СТРОГО ТУТ И ТОЛЬКО ОЧИЩЕННЫЙ ТЕКСТ! DeepSeek больше не увидит слово "аудио"
     if clean_text:
         await save_context(user_id, clean_text, is_user=True)
         
     await bot.send_chat_action(chat_id=message.chat.id, action="typing")
     
-    response_text = await generate_response(user_id, system_addition)
+    # Передаем max_tokens в генератор ответов
+    response_text = await generate_response(user_id, system_addition, max_tokens=max_tokens)
     
     if wants_voice:
         await bot.send_chat_action(chat_id=message.chat.id, action="record_voice")
@@ -572,15 +468,16 @@ async def process_ai_reply(message: Message, system_addition: str, trigger_text:
             else:
                 await message.answer_voice(voice=voice_file, reply_markup=create_main_keyboard())
         else:
-            await message.reply(f"(Голос не сгенерировался, пишу текстом):\n\n{response_text}")
+            # Добавили parse_mode сюда на случай сбоя аудио
+            await message.reply(f"(Голос не сгенерировался, пишу текстом):\n\n{response_text}", parse_mode="HTML")
     else:
+        # ДОБАВЛЕН PARSE_MODE ДЛЯ КОРРЕКТНОГО ОТОБРАЖЕНИЯ ЖИРНОГО ШРИФТА <b>
         if not is_private:
-            await message.reply(response_text)
+            await message.reply(response_text, parse_mode="HTML")
         else:
-            await message.answer(response_text, reply_markup=create_main_keyboard())
+            await message.answer(response_text, reply_markup=create_main_keyboard(), parse_mode="HTML")
             
     await save_context(user_id, response_text, is_user=False)
-    
 @dp.errors()
 async def global_errors_handler(event: ErrorEvent):
     logger.error(f"Критическое исключение: {event.exception}", exc_info=True)
@@ -659,118 +556,29 @@ async def chat_handler(callback: CallbackQuery):
     await clear_context(callback.from_user.id)
     await callback.message.edit_text("💬 Напиши мне в чат! Если хочешь голосовой ответ, начни сообщение со слова АУДИО")
 
-import random
-# Добавляем вызов мемов по текстовой команде /meme или /мем
-'''@dp.message(Command("meme", "мем"))
-async def meme_command_handler(message: Message):
-    # Отправляем сообщение-заглушку, как это делалось в кнопке
-    loading_msg = await message.reply("🔄 Подбираю актуальный шаблон и компромат...")
-    
-    template_name = random.choice(list(MEME_TEMPLATES.keys()))
-    template_info = MEME_TEMPLATES[template_name]
-    
-    prompt_content = f"Шаблон: {template_info['description']}\nИнструкция: {template_info['prompt_instruction']}"
-    
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT + "\n" + BUTTON_PROMPTS["meme"]},
-        {"role": "user", "content": prompt_content}
-    ]
-    
-    try:
-        response = await client.chat.completions.create(
-            model="deepseek-v4-flash",  
-            messages=messages,
-            max_tokens=100,
-            temperature=0.8
-        )
-        lines = [line.strip() for line in response.choices[0].message.content.strip().split("\n") if line.strip()]
-        
-        top_text = lines[0] if len(lines) > 0 else "План Волкова"
-        bottom_text = lines[1] if len(lines) > 1 else ""
-        
-    except Exception as e:
-        logger.error(f"Meme text generation error: {e}")
-        top_text = "Ошибка ИИ"
-        bottom_text = "Придется думать самому"
-
-    try:
-        meme_bytes = draw_meme(template_name, top_text, bottom_text)
-        input_file = BufferedInputFile(meme_bytes.read(), filename="meme.jpg")
-        
-        # Удаляем заглушку «Подбираю шаблон...», чтобы не мусорить в чате
-        await loading_msg.delete()
-        
-        # Отправляем мем ответом на команду пользователя
-        await message.reply_photo(
-            photo=input_file, 
-            caption="😎 Свежий мем от Комитета Люстрации. Камон, зацените структуру.",
-            reply_markup=create_main_keyboard()
-        )
-    except Exception as e:
-        logger.error(f"Meme drawing error: {e}")
-        await loading_msg.edit_text("Не удалось собрать картинку мема, Путин опять перерезал провода.")
-        
-# ОБРАБОТЧИК КНОПКИ ГЕНЕРАЦИИ ДЕШЕВЫХ МЕМОВ
-@dp.callback_query(F.data == "generate_meme")
-async def generate_meme_handler(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.edit_text("🔄 Подбираю актуальный шаблон и компромат...")
-    
-    template_name = random.choice(list(MEME_TEMPLATES.keys()))
-    template_info = MEME_TEMPLATES[template_name]
-    
-    prompt_content = f"Шаблон: {template_info['description']}\nИнструкция: {template_info['prompt_instruction']}"
-    
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT + "\n" + BUTTON_PROMPTS["meme"]},
-        {"role": "user", "content": prompt_content}
-    ]
-    
-    try:
-        response = await client.chat.completions.create(
-            model="deepseek-v4-flash",  
-            messages=messages,
-            max_tokens=150,
-            temperature=0.8,
-            response_format={"type": "json_object"} # Заставляем модель выплюнуть строгий JSON
-        )
-        
-        # Безопасно парсим ответ ИИ
-        meme_data = json.loads(response.choices[0].message.content.strip())
-        # Если ИИ вернул не те ключи, подстрахуемся get()
-        meme_texts = {
-            "text1": meme_data.get("text1", "План Б"),
-            "text2": meme_data.get("text2", "")
-        }
-        
-    except Exception as e:
-        logger.error(f"Meme JSON parsing error: {e}")
-        # Запасной угарный вариант на случай сбоя, вместо скучного Плана Волкова
-        meme_texts = {
-            "text1": "Сервер ФБК упал",
-            "text2": "Волков опять забыл оплатить хостинг"
-        }
-
-    try:
-        # Передаем словарь с текстами в новую функцию
-        meme_bytes = draw_meme(template_name, meme_texts)
-        input_file = BufferedInputFile(meme_bytes.read(), filename="meme.jpg")
-        
-        await callback.message.answer_photo(
-            photo=input_file, 
-            caption="😎 Свежий мем от Комитета Люстрации. Камон, зацените структуру.",
-            reply_markup=create_main_keyboard()
-        )
-    except Exception as e:
-        logger.error(f"Meme drawing error: {e}")
-        await callback.message.answer("Не удалось собрать картинку мема, Путин опять перерезал провода.")
-'''
 @dp.callback_query(F.data == "joke")
 async def joke_handler(callback: CallbackQuery):
     await callback.answer()
     await clear_context(callback.from_user.id)
     await callback.message.edit_text("⚡️ Оторвать тромб...")
     await process_ai_reply(callback.message, BUTTON_PROMPTS["joke"], trigger_text="")
+
+@dp.callback_query(F.data == "news")
+async def news_handler(callback: CallbackQuery):
+    await callback.answer()
+    await clear_context(callback.from_user.id)
+    await callback.message.edit_text("📰 Изучаю свежую прессу и готовлю разбор...")
+    
+    current_news = LATEST_NEWS_CACHE["text"]
+    trigger_text = f"Вот главные новости на сегодня:\n{current_news}\n\nРазбери их по пунктам."
+    
+    # Передаем увеличенный лимит токенов
+    await process_ai_reply(
+        callback.message, 
+        system_addition=BUTTON_PROMPTS["news"], 
+        trigger_text=trigger_text,
+        max_tokens=1000  # Теперь этого точно хватит на красивый список
+    )
 
 @dp.callback_query(F.data == "leaks")
 async def leaks_handler(callback: CallbackQuery):
@@ -885,6 +693,116 @@ async def on_bot_added(message: Message):
         if user.id == BOT_INFO["id"]:
             await message.answer("Привет! Я — Цифровой Навальный. Чтобы услышать меня, пишите в начале сообщения слово <b>АУДИО</b>.", parse_mode="HTML")
             break
+# --- ОБРАБОТЧИК ИНЛАЙН-РЕЖИМА (ВЫЗОВ ИЗ ЛЮБОГО ЧАТА) ---
+# --- ОБРАБОТЧИК ИНЛАЙН-РЕЖИМА (ИСПРАВЛЕННЫЙ И БЫСТРЫЙ) ---
+# --- 1. ОБРАБОТЧИК ИНЛАЙН-ЗАПРОСА (0 токенов, выдает мгновенные заглушки) ---
+@dp.inline_query()
+async def inline_query_handler(inline_query: InlineQuery):
+    query_text = inline_query.query.strip()
+    results = []
+
+    # Если пользователь просто тегнул бота без текста
+    if not query_text:
+        quick_presets = [
+            (
+                "static_joke", 
+                "⚡️ Оторвать тромб", 
+                "Случайный жесткий панчлайн",
+                "Камон, ребята, ну вы чего? Система Комитета Люстрации зафиксировала сбой. Срочно донатим ФБК, чтобы тромб прирос обратно!"
+            ),
+            (
+                "static_leaks", 
+                "🕵️‍♂️ Секретные сливы ФБК", 
+                "Диалог руководства из Slack",
+                "Жданов: Кто опять съел мой сэндвич на кухне в Лондоне?\nПевчих: Это Волков, он заложил его в бюджет под новую партию худи."
+            ),
+            (
+                "static_merch", 
+                "🛍 Запустить сбор на мерч", 
+                "Анонс абсурдного товара",
+                "Встречайте новую коллекцию мерча! Тактический фонарик 'Люблино-2007' с автографом. Всего за 50$ в крипте. Защити свою Прекрасную Россию Будущего правильно."
+            )
+        ]
+        
+        for idx, (result_id, title, desc, static_text) in enumerate(quick_presets):
+            results.append(
+                InlineQueryResultArticle(
+                    id=f"{result_id}_{idx}",
+                    title=title,
+                    description=desc,
+                    input_message_content=InputTextMessageContent(message_text=static_text)
+                )
+            )
+            
+    # Если пользователь ПЕЧАТАЕТ текст — отдаем пустую заглушку с кнопкой (ИИ НЕ ВЫЗЫВАЕМ!)
+    else:
+        # Кнопка обязательна, чтобы Телеграм передал ID сообщения для редактирования
+        placeholder_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⏳ Думает...", callback_data="thinking_process")]
+        ])
+
+        results.append(
+            InlineQueryResultArticle(
+                id="dynamic_request",
+                title="💬 Ответ Цифрового Навального",
+                description=f"Нажмите, чтобы отправить запрос: \"{query_text}\"",
+                input_message_content=InputTextMessageContent(
+                    message_text=f"<b>Запрос:</b> <i>{query_text}</i>\n\n😎 <b>Навальный:</b> ⏳ <i>Генерирую ответ, секунду...</i>",
+                    parse_mode="HTML"
+                ),
+                reply_markup=placeholder_keyboard
+            )
+        )
+
+    await inline_query.answer(results, cache_time=1, is_personal=True)
+
+
+# --- 2. ОБРАБОТЧИК ВЫБРАННОГО ОТВЕТА (Срабатывает ровно 1 раз при НАЖАТИИ) ---
+@dp.chosen_inline_result()
+async def chosen_inline_result_handler(chosen_result: ChosenInlineResult):
+    # Реагируем только на динамические запросы к ИИ
+    if chosen_result.result_id != "dynamic_request":
+        return
+
+    inline_msg_id = chosen_result.inline_message_id
+    query_text = chosen_result.query.strip()
+
+    if not inline_msg_id:
+        logger.error("Не получен inline_message_id. Проверь, включен ли inline feedback в BotFather!")
+        return
+
+    # Вот теперь ОДИН раз вызываем DeepSeek
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT + "\n" + BUTTON_PROMPTS["chat"]},
+        {"role": "user", "content": query_text}
+    ]
+    try:
+        response = await client.chat.completions.create(
+            model="deepseek-v4-flash",
+            messages=messages,
+            max_tokens=250,
+            temperature=0.7
+        )
+        ai_reply = response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"Inline AI error: {e}")
+        ai_reply = ERROR_FALLBACK_TEXT
+
+    if not ai_reply or not str(ai_reply).strip():
+        ai_reply = ERROR_FALLBACK_TEXT
+
+    final_text = f"<b>Запрос:</b> <i>{query_text}</i>\n\n😎 <b>Навальный:</b> {ai_reply}"
+
+    # Магия: заменяем заглушку на реальный ответ ИИ и удаляем кнопку загрузки
+    try:
+        await bot.edit_message_text(
+            text=final_text,
+            inline_message_id=inline_msg_id,
+            parse_mode="HTML",
+            reply_markup=None  # Убираем кнопку "Думает..."
+        )
+    except Exception as e:
+        logger.error(f"Ошибка редактирования инлайн-сообщения: {e}")
 
 async def main():
     await init_db()
@@ -895,6 +813,10 @@ async def main():
     
     dp.message.middleware(ThrottlingMiddleware())
     dp.callback_query(ThrottlingMiddleware())
+    
+    # <-- ДОБАВЛЯЕМ СТРОКУ НИЖЕ ДЛЯ ЗАПУСКА ФОНОВОЙ ЗАДАЧИ НОВОСТЕЙ -->
+    asyncio.create_task(update_news_task())
+    
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
