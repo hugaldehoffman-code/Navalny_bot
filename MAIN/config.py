@@ -19,7 +19,8 @@ load_dotenv(os.path.join(current_dir, ".env"))
 
 # Конфигурация из окружения
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")          # оставлен для совместимости (старый ключ)
+ROUTERAI_API_KEY = os.getenv("ROUTERAI_API_KEY", os.getenv("DEEPSEEK_API_KEY"))  # новый ключ, fallback на старый
 
 # Настройки Zvukogram
 ZVUKOGRAM_TOKEN = os.getenv("ZVUKOGRAM_TOKEN")
@@ -43,8 +44,9 @@ else:
     bot_session = None
     logger.info("Сессия бота инициализирована БЕЗ прокси")
 
-# Инициализация OpenAI клиента под шлюз GPTunnel
-client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://gptunnel.ru/v1")
+# Инициализация OpenAI клиента под шлюз RouterAI
+ROUTERAI_BASE_URL = "https://routerai.ru/api/v1"
+client = AsyncOpenAI(api_key=ROUTERAI_API_KEY, base_url=ROUTERAI_BASE_URL)
 
 # Initialize bot and dispatcher с глобальным включением HTML
 bot = Bot(token=TELEGRAM_TOKEN, session=bot_session, default=DefaultBotProperties(parse_mode="HTML"))

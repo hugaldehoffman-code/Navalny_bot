@@ -8,14 +8,14 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(current_dir, ".env"))
 
 async def fetch_all_models():
-    # Инициализируем клиент с вашим URL шлюза
+    # Инициализируем клиент с URL шлюза RouterAI
     client = AsyncOpenAI(
-        api_key=os.getenv("DEEPSEEK_API_KEY"),
-        base_url="https://gptunnel.ru/v1"
+        api_key=os.getenv("ROUTERAI_API_KEY", os.getenv("DEEPSEEK_API_KEY")),
+        base_url="https://routerai.ru/api/v1"
     )
     
     try:
-        print("Получаем список моделей от GPTunnel...")
+        print("Получаем список моделей от RouterAI...")
         # Метод библиотеки, который делает запрос к v1/models
         models_page = await client.models.list()
         

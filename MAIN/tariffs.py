@@ -27,9 +27,9 @@ TARIFFS: dict[str, Tariff] = {
         name_ru="🎟 Бесплатный (Free)",
         daily_text_limit=50,
         daily_media_limit=7,
-        text_model="deepseek-v4-flash",
-        vision_model="gemini-3.1-flash-lite",
-        vision_fallback_models=["gemini-3-flash"],
+        text_model="deepseek/deepseek-v4-flash",
+        vision_model="qwen/qwen3.5-flash-02-23",
+        vision_fallback_models=["google/gemini-2.0-flash"],
         features=[
             "💬 Базовое общение",
             "📰 Комментарий к новостям",
@@ -41,9 +41,9 @@ TARIFFS: dict[str, Tariff] = {
         name_ru="⭐ VIP Lite (Премиум 1)",
         daily_text_limit=200,
         daily_media_limit=20,
-        text_model="deepseek-v4-flash",
-        vision_model="gemini-3.1-flash-lite",
-        vision_fallback_models=["gemini-3-flash", "gpt-4o-mini"],
+        text_model="deepseek/deepseek-v4-flash",
+        vision_model="qwen/qwen3.5-flash-02-23",
+        vision_fallback_models=["google/gemini-2.0-flash", "openai/o4-mini"],
         features=[
             "💬 Общение (до 100 запросов/день)",
             "📰 Комментарий к новостям",
@@ -57,9 +57,9 @@ TARIFFS: dict[str, Tariff] = {
         name_ru="👑 VIP Pro (Премиум 2)",
         daily_text_limit=-1,   # безлимит
         daily_media_limit=-1,  # безлимит
-        text_model="deepseek-v4-flash",
-        vision_model="gemini-3.1-flash-lite",
-        vision_fallback_models=["gemini-3-flash", "gpt-4o-mini"],
+        text_model="deepseek/deepseek-v4-flash",
+        vision_model="qwen/qwen3.5-flash-02-23",
+        vision_fallback_models=["google/gemini-2.0-flash", "openai/o4-mini"],
         features=[
             "💬 Безлимитное общение",
             "📰 Комментарий к новостям",

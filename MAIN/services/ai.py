@@ -8,7 +8,8 @@ from typing import Optional
 
 from config import (
     client, bot, logger, ZVUKOGRAM_TOKEN, ZVUKOGRAM_EMAIL, ZVUKOGRAM_VOICE,
-    SYSTEM_PROMPT, ERROR_FALLBACK_TEXT, VIP_USERS, USER_AUDIO_LOGS, AUDIO_LIMIT_WINDOW, BUTTON_PROMPTS
+    SYSTEM_PROMPT, ERROR_FALLBACK_TEXT, VIP_USERS, USER_AUDIO_LOGS, AUDIO_LIMIT_WINDOW, BUTTON_PROMPTS,
+    ROUTERAI_API_KEY
 )
 from database import save_context, get_context, get_or_create_user, check_and_reset_daily_limits, expire_premium_if_needed
 from tariffs import get_tariff, TARIFFS
@@ -17,11 +18,10 @@ from tariffs import get_tariff, TARIFFS
 #  VISION API КЛИЕНТ (отдельный)
 # ═════════════════════════════════════════════
 
-VISION_API_KEY = "shds-vtaExV18kmc70SOuSiRkRUlNp78"
-VISION_BASE_URL = "https://gptunnel.ru/v1"
+VISION_BASE_URL = "https://routerai.ru/api/v1"
 
 vision_client = AsyncOpenAI(
-    api_key=VISION_API_KEY,
+    api_key=ROUTERAI_API_KEY,
     base_url=VISION_BASE_URL,
     max_retries=1,
 )
@@ -124,7 +124,7 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
     base64_audio = base64.b64encode(audio_bytes).decode("utf-8")
     try:
         response = await client.chat.completions.create(
-            model="gemini-2.0-flash",
+            model="google/gemini-2.0-flash",
             messages=[
                 {
                     "role": "user",
