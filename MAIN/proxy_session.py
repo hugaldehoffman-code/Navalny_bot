@@ -71,17 +71,21 @@ class FailoverAiohttpSession(AiohttpSession):
             return self._session
 
         proxy_url = self._current_proxy_url
-        connector = self._make_connector(proxy_url)
 
-        # Для HTTP-прокси aiogram передаёт proxy= в каждый запрос; коннектор не нужен.
-        # Для SOCKS5 коннектор несёт весь routing — proxy= в запросе не используется.
-        self.proxy = self._get_http_proxy(proxy_url)
-
-        self._session = aiohttp.ClientSession(
-            connector=connector or aiohttp.TCPConnector(),
-            json_serialize=self._json_serialize,
-        )
-        return self._session
+        if self._is_socks(proxy_url):
+            # SOCKS5: создаём сессию с ProxyConnector напрямую, self.proxy не трогаем
+            import json
+            connector = self._make_connector(proxy_url)
+            json_serialize = getattr(self, "json_serialize", None) or json.dumps
+            self._session = aiohttp.ClientSession(
+                connector=connector,
+                json_serialize=json_serialize,
+            )
+            return self._session
+        else:
+            # HTTP: передаём proxy aiogram — он сам строит коннектор
+            self.proxy = proxy_url
+            return await super().create_session()
 
     async def _close_current_session(self) -> None:
         if self._session and not self._session.closed:
