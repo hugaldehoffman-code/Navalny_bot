@@ -3,11 +3,10 @@ import logging
 from collections import defaultdict
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
-from aiogram.client.session.aiohttp import AiohttpSession
-from aiohttp import BasicAuth
 from openai import AsyncOpenAI
 from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from proxy_session import FailoverAiohttpSession
 
 # Настройки логирования
 logging.basicConfig(level=logging.INFO)
@@ -27,19 +26,29 @@ ZVUKOGRAM_TOKEN = os.getenv("ZVUKOGRAM_TOKEN")
 ZVUKOGRAM_EMAIL = os.getenv("ZVUKOGRAM_EMAIL")
 ZVUKOGRAM_VOICE = os.getenv("ZVUKOGRAM_VOICE", "Алексей Нормальный clone")
 
-# Настройки Прокси
-PROXY_URL = os.getenv("PROXY_URL")
-PROXY_USER = os.getenv("PROXY_USER")
-PROXY_PASS = os.getenv("PROXY_PASS")
+# Пул прокси — основной и резервные.
+# Порядок важен: первый — основной, остальные — fallback.
+# Поддерживаемые форматы:
+#   "http://ip:port"
+#   "http://user:pass@ip:port"
+#   "socks5://user:pass@ip:port"
+PROXIES: list[str] = [
+    proxy
+    for proxy in [
+        os.getenv("PROXY_URL"),           # основной из .env
+        os.getenv("PROXY_BACKUP_1"),      # резервный 1
+        os.getenv("PROXY_BACKUP_2"),      # резервный 2
+    ]
+    if proxy  # пропускаем незаданные переменные
+]
 
 # Валидация ключей при старте
 if not DEEPSEEK_API_KEY or not TELEGRAM_TOKEN or not ZVUKOGRAM_TOKEN or not ZVUKOGRAM_EMAIL:
     raise ValueError("Критическая ошибка: Проверьте переменные окружения в .env файле!")
 
-if PROXY_URL:
-    proxy_auth = BasicAuth(login=PROXY_USER, password=PROXY_PASS) if PROXY_USER else None
-    bot_session = AiohttpSession(proxy=(PROXY_URL, proxy_auth))
-    logger.info(f"Сессия бота инициализирована через прокси: {PROXY_URL}")
+if PROXIES:
+    bot_session = FailoverAiohttpSession(proxies=PROXIES)
+    logger.info("Сессия бота: FailoverAiohttpSession, прокси-пул (%d шт.): %s", len(PROXIES), PROXIES)
 else:
     bot_session = None
     logger.info("Сессия бота инициализирована БЕЗ прокси")
