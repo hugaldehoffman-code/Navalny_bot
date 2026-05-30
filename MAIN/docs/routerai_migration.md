@@ -37,17 +37,4 @@ Models renamed to RouterAI-compatible identifiers:
 
 Add this to your `.env` file:
 
-```env
-ROUTERAI_API_KEY=your_routerai_api_key_here
-```
 
-If `ROUTERAI_API_KEY` is not set, the system falls back to `DEEPSEEK_API_KEY`.
-
-## Verification
-
-The system logs successful RouterAI calls as:
-
-```
-HTTP Request: POST https://routerai.ru/api/v1/chat/completions \"HTTP/1.1 200 OK\"
-```
-"

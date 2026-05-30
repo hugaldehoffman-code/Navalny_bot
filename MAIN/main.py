@@ -5,7 +5,7 @@ from collections import defaultdict
 from aiogram import F
 from aiogram.types import Message, ErrorEvent
 
-from config import bot, dp, logger, BOT_INFO, ERROR_FALLBACK_TEXT, BUTTON_PROMPTS
+from config import bot, dp, logger, BOT_INFO, ERROR_FALLBACK_TEXT, BUTTON_PROMPTS, SYSTEM_PROMPT
 from database import init_db, save_context
 
 from middlewares.throttling import ThrottlingMiddleware
@@ -107,20 +107,46 @@ async def photo_handler(message: Message):
     if not should_respond:
         return
 
+    # Индикация работы — показываем typing
     await bot.send_chat_action(chat_id=message.chat.id, action="typing")
 
     photo = message.photo[-1]
     file_info = await bot.get_file(photo.file_id)
-    downloaded_file = await bot.download_file(file_info.file_path)
+
+    # Защита от таймаутов прокси при скачивании
+    try:
+        downloaded_file = await asyncio.wait_for(
+            bot.download_file(file_info.file_path),
+            timeout=30.0
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout при скачивании фото от пользователя {message.from_user.id}")
+        await message.reply(
+            "⚠️ Мой прокси-сервер сейчас слишком медленно скачивает файлы. "
+            "Пожалуйста, попробуй прислать картинку еще раз чуть позже!"
+        )
+        return
+
     image_bytes = downloaded_file.read()
 
-    image_description = await analyze_image_vision(image_bytes)
+    # Vision-запрос сразу со стилем персонажа (через SYSTEM_PROMPT)
+    image_response = await analyze_image_vision(
+        image_bytes,
+        system_prompt=SYSTEM_PROMPT + "\n" + BUTTON_PROMPTS["vision_comment"]
+    )
 
-    user_content = f"[Фото: {image_description}]"
+    # Сохраняем в контекст: подпись (если есть) и ответ AI
+    user_content = "[Фото]"
     if message.caption:
         user_content += f" Подпись: {clean_text}"
+    await save_context(message.from_user.id, user_content, is_user=True)
+    await save_context(message.from_user.id, image_response, is_user=False)
 
-    await process_ai_reply(message, system_addition=BUTTON_PROMPTS["vision_comment"], trigger_text=user_content)
+    # Отправляем ответ пользователю
+    if message.chat.type != "private":
+        await message.reply(image_response, parse_mode="HTML")
+    else:
+        await message.answer(image_response, parse_mode="HTML")
 
 
 async def main():

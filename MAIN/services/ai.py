@@ -66,16 +66,20 @@ async def generate_voice_reply(text: str) -> BufferedInputFile | None:
 
 
 # ═════════════════════════════════════════════
-#  РАСПОЗНАВАНИЕ КАРТИНОК (VISION)
+
+#  РАСПОЗНАВАНИЕ КАРТИНОК (VISION) — ОПТИМИЗИРОВАННАЯ ВЕРСИЯ
 # ═════════════════════════════════════════════
 
 async def analyze_image_vision(
     image_bytes: bytes,
     tariff_name: str = "FREE",
+    system_prompt: str = None,
     prompt: str = None,
 ) -> str:
     """
     Анализ картинки через Vision API.
+    Если передан system_prompt — модель сразу генерирует ответ в стиле персонажа.
+    Если передан prompt — используется как текстовая инструкция для пользователя.
     Модель выбирается динамически по тарифу пользователя.
     """
     base64_image = base64.b64encode(image_bytes).decode("utf-8")
@@ -84,28 +88,29 @@ async def analyze_image_vision(
     # Цепочка моделей: основная + фоллбэки
     models_to_try = [tariff.vision_model] + tariff.vision_fallback_models
 
-    if prompt is None:
-        prompt = (
-            "Опиши очень кратко и понятно, что происходит на этой картинке. "
-            "Если на фото есть известные люди, политики, мировые лидеры или блогеры, "
-            "ОБЯЗАТЕЛЬНО назови их имена и фамилии. Если на картинке есть текст, напиши его."
-        )
+    # Формируем сообщения: если есть system_prompt — добавляем его первой ролью
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+
+    # Определяем текст для пользовательского сообщения
+    user_text = "Опиши изображение и сразу ответь в заданном стиле персонажа."
+    if prompt:
+        user_text = prompt
+
+    user_content_parts = [
+        {"type": "text", "text": user_text},
+        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+    ]
+    messages.append({"role": "user", "content": user_content_parts})
 
     for model_name in models_to_try:
         try:
             logger.info(f"Vision ({tariff_name}): пробую модель {model_name}")
             response = await vision_client.chat.completions.create(
                 model=model_name,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
-                        ],
-                    }
-                ],
-                max_tokens=250,
+                messages=messages,
+                max_tokens=300,
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -113,7 +118,7 @@ async def analyze_image_vision(
             continue
 
     logger.error(f"Все Vision-модели ({models_to_try}) не отработали.")
-    return "Не удалось распознать объекты на фото."
+    return ERROR_FALLBACK_TEXT
 
 
 # ═════════════════════════════════════════════
