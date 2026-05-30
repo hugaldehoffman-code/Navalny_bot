@@ -16,5 +16,5 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /root/Navalniy_Bot
-            git pull
-            sudo systemctl restart navalny_bot
+            git -c http.proxy=http://6NeZMV:iSxcP9mEj0@45.90.196.56:5500 pull
+            systemctl restart navalny_bot
