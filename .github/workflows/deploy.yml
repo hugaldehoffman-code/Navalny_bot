@@ -16,11 +16,10 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
-            echo "=== PWD: $(pwd)"
-            echo "=== Project dir exists: $(ls /root/Navalniy_Bot 2>&1 | head -3)"
             cd /root/Navalniy_Bot
-            echo "=== Current commit before pull: $(git rev-parse --short HEAD)"
+            git rm --cached MAIN/.env MAIN/navalny_bot.db 2>/dev/null || true
+            rm -f .gitignore
             git -c http.proxy=${{ secrets.GIT_PROXY_URL }} pull
-            echo "=== Current commit after pull: $(git rev-parse --short HEAD)"
+            echo "=== Commit: $(git rev-parse --short HEAD)"
             systemctl restart navalny_bot
-            echo "=== Service status: $(systemctl is-active navalny_bot)"
+            echo "=== Service: $(systemctl is-active navalny_bot)"
