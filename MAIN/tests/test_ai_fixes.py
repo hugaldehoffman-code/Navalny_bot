@@ -108,7 +108,7 @@ class TestMaxTokens:
         mc = _mock_client(_api_response())
         with patch.object(ai_module, "client", mc):
             await ai_module.generate_response(user_id=1)
-        assert mc.chat.completions.create.call_args.kwargs["max_tokens"] == 400
+        assert mc.chat.completions.create.call_args.kwargs["max_tokens"] == 500
 
     @pytest.mark.asyncio
     async def test_generate_response_custom_max_tokens_respected(self):
@@ -128,7 +128,7 @@ class TestMaxTokens:
         with patch.object(ai_module, "generate_response", new=AsyncMock(return_value="ok")) as mock_gen:
             await ai_module.process_ai_reply(msg, system_addition="", trigger_text="привет")
 
-        assert mock_gen.call_args.kwargs["max_tokens"] == 400
+        assert mock_gen.call_args.kwargs["max_tokens"] == 500
 
     @pytest.mark.asyncio
     async def test_inline_handler_uses_400(self):
@@ -139,7 +139,7 @@ class TestMaxTokens:
             with patch("asyncio.sleep", new_callable=AsyncMock):
                 await inline_module.chosen_inline_result_handler(_inline_chosen_result())
 
-        assert mc.chat.completions.create.call_args.kwargs["max_tokens"] == 400
+        assert mc.chat.completions.create.call_args.kwargs["max_tokens"] == 500
 
 
 # ─────────────────────────────────────────────────────────────────────────────

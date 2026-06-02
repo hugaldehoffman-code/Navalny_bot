@@ -155,7 +155,7 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
 async def generate_response(
     user_id: int,
     system_addition: str = "",
-    max_tokens: int = 400,
+    max_tokens: int = 500,
     tariff_name: str = "FREE",
 ) -> str:
     """Генерирует ответ через AI с учётом тарифа (выбор модели)."""
@@ -170,6 +170,7 @@ async def generate_response(
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=0.7,
+                timeout=25.0,
             )
             res_text = response.choices[0].message.content
             if not res_text or not res_text.strip():
@@ -203,7 +204,7 @@ async def process_ai_reply(
     message: Message,
     system_addition: str,
     trigger_text: str,
-    max_tokens: int = 400,
+    max_tokens: int = 500,
     tariff_name: str = None,
 ) -> None:
     if tariff_name is None:
@@ -463,7 +464,7 @@ async def analyze_document(
         )
         result = response.choices[0].message.content
         if not result or not result.strip():
-            return "📑 Документ прочитан, но анализ не удался. Волков, наверное, отключил сервер на ланч."
+            return "📑 Документ прочитан, но анализ не удался. Попробуй ещё раз."
         return result
     except Exception as e:
         logger.error(f"Ошибка анализа документа: {e}")

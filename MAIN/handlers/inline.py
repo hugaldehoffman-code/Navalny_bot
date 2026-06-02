@@ -83,8 +83,9 @@ async def chosen_inline_result_handler(chosen_result: ChosenInlineResult):
             response = await client.chat.completions.create(
                 model="deepseek-v4-flash",
                 messages=messages,
-                max_tokens=400,
+                max_tokens=500,
                 temperature=0.7,
+                timeout=25.0,
             )
             ai_reply = response.choices[0].message.content or ERROR_FALLBACK_TEXT
             break
