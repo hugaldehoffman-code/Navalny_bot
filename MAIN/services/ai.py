@@ -272,18 +272,23 @@ async def process_ai_reply(
 # ─── Системные промпты ──────────────────────────────────────────
 
 FACTCHECK_SYSTEM_PROMPT = """Ты — строгий политический фактчекер, работающий на Цифрового Навального 2.0.
+У тебя есть доступ к поиску в интернете — используй его, чтобы найти актуальные данные перед вынесением вердикта.
 
-ТВОЯ ЗАДАЧА: проанализировать утверждение / новость и вынести ОДНОЗНАЧНЫЙ вердикт.
+ТВОЯ ЗАДАЧА: проверить утверждение / новость и вынести ОДНОЗНАЧНЫЙ вердикт.
 
-ФОРМАТ ОТВЕТА (СТРОГО):
-1. ВЕРДИКТ: [ПРАВДА / ЛОЖЬ / ПОЛУПРАВДА / МАНИПУЛЯЦИЯ]
-2. АРГУМЕНТАЦИЯ: 2-3 коротких предложения с фактами. Если есть отсылка к конкретным данным (цифры, законы, статистика) — обязательно приведи их.
-3. ВЕРДИКТ НАВАЛЬНОГО: 1 короткая, едкая, сатирическая фраза от лица Цифрового Навального по этому поводу.
+ФОРМАТ ОТВЕТА (СТРОГО, без отступлений):
+<b>ВЕРДИКТ:</b> [ПРАВДА / ЛОЖЬ / ПОЛУПРАВДА / МАНИПУЛЯЦИЯ]
+
+<b>АРГУМЕНТАЦИЯ:</b> 2-3 предложения с конкретными фактами — цифры, даты, законы, статистика из найденных источников.
+
+<b>ИСТОЧНИКИ:</b> 1-2 конкретных источника (название издания или сайта), которые подтверждают вердикт.
+
+<b>ВЕРДИКТ НАВАЛЬНОГО:</b> 1 едкая сатирическая фраза от первого лица.
 
 ПРАВИЛА:
-- Никакой воды. Только факты и логика.
-- Если тема вне российской политики — всё равно анализируй.
-- Не используй markdown. Только чистый HTML: <b>жирный</b> для вердикта.
+- Ищи актуальную информацию в сети прежде чем отвечать.
+- Никакой воды — только факты и логика.
+- Не используй markdown-разметку. Только HTML: <b>тег</b> для заголовков.
 """
 
 POST_GENERATOR_SYSTEM_PROMPT = """Ты — Цифровой Навальный 2.0, и тебе поручили написать пост-расследование в твоём фирменном стиле.
@@ -351,21 +356,27 @@ async def factcheck_claim(
         {"role": "user", "content": f"Проверь следующее утверждение:\n\n{claim_text}"},
     ]
 
-    try:
-        logger.info(f"Фактчекинг (тариф {tariff_name}): отправка запроса к {tariff.text_model}")
-        response = await client.chat.completions.create(
-            model=tariff.text_model,
-            messages=messages,
-            max_tokens=500,
-            temperature=0.3,  # низкая температура для большей фактической точности
-        )
-        result = response.choices[0].message.content
-        if not result or not result.strip():
-            return "<b>ВЕРДИКТ:</b> 🤷‍♂️ Не удалось провести проверку. Попробуй ещё раз."
-        return result
-    except Exception as e:
-        logger.error(f"Ошибка фактчекинга: {e}")
-        return "<b>ВЕРДИКТ:</b> 🔌 Сервер ФБК ушёл в оффлайн. Попробуй через минуту."
+    for attempt in range(3):
+        try:
+            logger.info(f"Фактчекинг attempt {attempt + 1}/3 (тариф {tariff_name})")
+            response = await client.chat.completions.create(
+                model="deepseek/deepseek-v4-pro:online",
+                messages=messages,
+                max_tokens=600,
+                temperature=0.3,
+                timeout=30.0,
+            )
+            result = response.choices[0].message.content
+            if not result or not result.strip():
+                return "<b>ВЕРДИКТ:</b> 🤷‍♂️ Не удалось провести проверку. Попробуй ещё раз."
+            return result
+        except Exception as e:
+            if attempt < 2:
+                logger.warning(f"Фактчекинг attempt {attempt + 1}/3 failed: {e}. Retry in {attempt + 1}s")
+                await asyncio.sleep(float(attempt + 1))
+            else:
+                logger.error(f"Фактчекинг failed after 3 attempts: {e}")
+    return "<b>ВЕРДИКТ:</b> 🔌 Сервер ФБК ушёл в оффлайн. Попробуй через минуту."
 
 
 # ─── ФУНКЦИЯ 2: Генератор постов-расследований ──────────────────
@@ -393,21 +404,27 @@ async def generate_investigation_post(
         },
     ]
 
-    try:
-        logger.info(f"Генератор постов (тариф {tariff_name}): отправка к {tariff.text_model}")
-        response = await client.chat.completions.create(
-            model=tariff.text_model,
-            messages=messages,
-            max_tokens=800,
-            temperature=0.85,
-        )
-        result = response.choices[0].message.content
-        if not result or not result.strip():
-            return "Камон, тут путин грыз провода, пост не сгенерировался. Попробуй ещё раз."
-        return result
-    except Exception as e:
-        logger.error(f"Ошибка генерации поста: {e}")
-        return "🔌 Серверная в ШИЗО. Попробуй через минуту."
+    for attempt in range(3):
+        try:
+            logger.info(f"Генератор постов attempt {attempt + 1}/3 (тариф {tariff_name})")
+            response = await client.chat.completions.create(
+                model="deepseek/deepseek-v4-pro",
+                messages=messages,
+                max_tokens=800,
+                temperature=0.85,
+                timeout=30.0,
+            )
+            result = response.choices[0].message.content
+            if not result or not result.strip():
+                return "Камон, тут путин грыз провода, пост не сгенерировался. Попробуй ещё раз."
+            return result
+        except Exception as e:
+            if attempt < 2:
+                logger.warning(f"Генератор постов attempt {attempt + 1}/3 failed: {e}. Retry in {attempt + 1}s")
+                await asyncio.sleep(float(attempt + 1))
+            else:
+                logger.error(f"Генератор постов failed after 3 attempts: {e}")
+    return "🔌 Серверная в ШИЗО. Попробуй через минуту."
 
 
 # ─── ФУНКЦИЯ 3: Глубокий анализ документов ──────────────────────
@@ -454,18 +471,24 @@ async def analyze_document(
         },
     ]
 
-    try:
-        logger.info(f"Анализ документа (тариф {tariff_name}): отправка к {tariff.text_model}")
-        response = await client.chat.completions.create(
-            model=tariff.text_model,
-            messages=messages,
-            max_tokens=1000,
-            temperature=0.6,
-        )
-        result = response.choices[0].message.content
-        if not result or not result.strip():
-            return "📑 Документ прочитан, но анализ не удался. Попробуй ещё раз."
-        return result
-    except Exception as e:
-        logger.error(f"Ошибка анализа документа: {e}")
-        return "📑 Сервер ушёл в ШИЗО. Попробуй проанализировать документ позже."
+    for attempt in range(3):
+        try:
+            logger.info(f"Анализ документа attempt {attempt + 1}/3 (тариф {tariff_name})")
+            response = await client.chat.completions.create(
+                model="deepseek/deepseek-v4-pro",
+                messages=messages,
+                max_tokens=1000,
+                temperature=0.6,
+                timeout=30.0,
+            )
+            result = response.choices[0].message.content
+            if not result or not result.strip():
+                return "📑 Документ прочитан, но анализ не удался. Попробуй ещё раз."
+            return result
+        except Exception as e:
+            if attempt < 2:
+                logger.warning(f"Анализ документа attempt {attempt + 1}/3 failed: {e}. Retry in {attempt + 1}s")
+                await asyncio.sleep(float(attempt + 1))
+            else:
+                logger.error(f"Анализ документа failed after 3 attempts: {e}")
+    return "📑 Сервер ушёл в ШИЗО. Попробуй проанализировать документ позже."
