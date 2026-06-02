@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 from collections import defaultdict
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
@@ -12,9 +13,11 @@ from proxy_session import FailoverAiohttpSession
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Явно подгружаем .env из текущей директории скрипта
-current_dir = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(current_dir, ".env"))
+# Корневая директория пакета (папка MAIN/) — работает из любого cwd
+BASE_DIR = Path(__file__).parent
+
+# Явно подгружаем .env из директории скрипта
+load_dotenv(BASE_DIR / ".env")
 
 # Конфигурация из окружения
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -61,8 +64,8 @@ client = AsyncOpenAI(api_key=ROUTERAI_API_KEY, base_url=ROUTERAI_BASE_URL)
 bot = Bot(token=TELEGRAM_TOKEN, session=bot_session, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 
-# Имя базы данных
-DB_NAME = "navalny_bot.db"
+# Абсолютный путь к базе данных (рядом с config.py, не зависит от cwd)
+DB_NAME = str(BASE_DIR / "navalny_bot.db")
 
 # Текст ошибки
 ERROR_FALLBACK_TEXT = "Камон, тут путин грыз провода, но Навальный всё равно вышел на связь! Попробуй еще раз."
