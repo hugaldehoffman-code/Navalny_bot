@@ -17,9 +17,13 @@ jobs:
           script: |
             set -e
             cd /root/Navalniy_Bot
+            cp MAIN/.env /tmp/.env.bak 2>/dev/null || true
+            cp MAIN/navalny_bot.db /tmp/navalny_bot.db.bak 2>/dev/null || true
             git rm --cached MAIN/.env MAIN/navalny_bot.db 2>/dev/null || true
-            rm -f .gitignore
+            rm -f MAIN/.env MAIN/navalny_bot.db .gitignore
             git -c http.proxy=${{ secrets.GIT_PROXY_URL }} pull
+            cp /tmp/.env.bak MAIN/.env 2>/dev/null || true
+            cp /tmp/navalny_bot.db.bak MAIN/navalny_bot.db 2>/dev/null || true
             echo "=== Commit: $(git rev-parse --short HEAD)"
             systemctl restart navalny_bot
             echo "=== Service: $(systemctl is-active navalny_bot)"
