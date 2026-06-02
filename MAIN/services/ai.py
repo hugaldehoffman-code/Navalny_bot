@@ -368,7 +368,7 @@ async def factcheck_claim(
                 messages=messages,
                 max_tokens=3500,
                 temperature=0.3,
-                timeout=90.0,
+                timeout=150.0,
             )
             result = response.choices[0].message.content
             if not result or not result.strip():
@@ -380,7 +380,12 @@ async def factcheck_claim(
                 await asyncio.sleep(3.0)
             else:
                 logger.error(f"Фактчекинг failed after 2 attempts: {e}")
-    return "<b>ВЕРДИКТ:</b> 🔌 Сервер ФБК ушёл в оффлайн. Попробуй через минуту."
+    return (
+        "⚠️ <b>Фактчекинг не завершился.</b>\n\n"
+        "Проверка использует мощную модель с поиском в интернете — запрос занимает 40–90 секунд, "
+        "и иногда сервер не успевает ответить в срок. Деньги за незавершённый запрос не списываются.\n\n"
+        "Попробуй ещё раз — обычно со второй попытки всё работает."
+    )
 
 
 # ─── ФУНКЦИЯ 2: Генератор постов-расследований ──────────────────
