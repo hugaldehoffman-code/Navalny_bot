@@ -200,9 +200,56 @@ async def factcheck_command(message: Message):
         )
         return
 
-    await bot.send_chat_action(chat_id=message.chat.id, action="typing")
-    result = await factcheck_claim(user_id, claim_text, image_bytes, tariff_name)
-    await message.reply(result, parse_mode="HTML")
+    placeholder = await message.reply(
+        "🔍 <i>Запускаю проверку фактов... Это займёт около минуты.</i>",
+        parse_mode="HTML"
+    )
+
+    loading_phrases = [
+        "🔍 <i>Роюсь в открытых источниках. Кремль, к счастью, иногда врёт публично.</i>",
+        "📡 <i>Сканирую мировые новостные агентства. Их много, врут по-разному.</i>",
+        "🕵️ <i>Опрашиваю источники в трёх странах. Анонимно, разумеется.</i>",
+        "📊 <i>Сверяю цифры с официальной статистикой. Это всегда весело.</i>",
+        "🧪 <i>Отправил запрос в профильные лаборатории. Ждём ответа.</i>",
+        "📰 <i>Листаю 847 страниц расследований Bellingcat. Почти добрался до сути.</i>",
+        "🌐 <i>Проверяю первоисточники. Оказывается, их никто не читает, кроме меня.</i>",
+        "🔎 <i>Сравниваю версии событий. Официальная и реальная — как всегда две разные истории.</i>",
+        "💾 <i>Архивирую доказательства. На всякий случай — вдруг удалят.</i>",
+        "📋 <i>Составляю вердикт. Главное — не дать эмоциям победить факты.</i>",
+        "⚖️ <i>Взвешиваю аргументы. Чаша весов уже склоняется в одну сторону.</i>",
+        "✍️ <i>Формулирую заключение. Скоро всё будет готово.</i>",
+    ]
+
+    factcheck_task = asyncio.create_task(
+        factcheck_claim(user_id, claim_text, image_bytes, tariff_name)
+    )
+
+    idx = 0
+    while not factcheck_task.done():
+        await asyncio.sleep(5)
+        if factcheck_task.done():
+            break
+        try:
+            await bot.edit_message_text(
+                chat_id=placeholder.chat.id,
+                message_id=placeholder.message_id,
+                text=loading_phrases[idx % len(loading_phrases)],
+                parse_mode="HTML",
+            )
+            idx += 1
+        except Exception:
+            pass
+
+    result = await factcheck_task
+    try:
+        await bot.edit_message_text(
+            chat_id=placeholder.chat.id,
+            message_id=placeholder.message_id,
+            text=result,
+            parse_mode="HTML",
+        )
+    except Exception:
+        await message.reply(result, parse_mode="HTML")
 
 
 @router.message(Command("post"))
