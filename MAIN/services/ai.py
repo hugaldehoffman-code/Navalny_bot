@@ -360,26 +360,26 @@ async def factcheck_claim(
         {"role": "user", "content": f"Проверь следующее утверждение:\n\n{claim_text}"},
     ]
 
-    for attempt in range(3):
+    for attempt in range(2):
         try:
-            logger.info(f"Фактчекинг attempt {attempt + 1}/3 (тариф {tariff_name})")
+            logger.info(f"Фактчекинг attempt {attempt + 1}/2 (тариф {tariff_name})")
             response = await client.chat.completions.create(
                 model="deepseek/deepseek-v4-pro:online",
                 messages=messages,
                 max_tokens=3500,
                 temperature=0.3,
-                timeout=30.0,
+                timeout=90.0,
             )
             result = response.choices[0].message.content
             if not result or not result.strip():
                 return "<b>ВЕРДИКТ:</b> 🤷‍♂️ Не удалось провести проверку. Попробуй ещё раз."
             return result
         except Exception as e:
-            if attempt < 2:
-                logger.warning(f"Фактчекинг attempt {attempt + 1}/3 failed: {e}. Retry in {attempt + 1}s")
-                await asyncio.sleep(float(attempt + 1))
+            if attempt < 1:
+                logger.warning(f"Фактчекинг attempt {attempt + 1}/2 failed: {e}. Retry in 3s")
+                await asyncio.sleep(3.0)
             else:
-                logger.error(f"Фактчекинг failed after 3 attempts: {e}")
+                logger.error(f"Фактчекинг failed after 2 attempts: {e}")
     return "<b>ВЕРДИКТ:</b> 🔌 Сервер ФБК ушёл в оффлайн. Попробуй через минуту."
 
 
