@@ -8,6 +8,8 @@ import sys
 import os
 import asyncio
 import time
+import atexit
+import tempfile
 from datetime import datetime, timedelta
 from collections import defaultdict
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -19,20 +21,33 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # Подменяем config до импорта модулей бота
 import types
 
+# Temp-file DB: unlike ":memory:", a file path shares state across
+# multiple aiosqlite.connect() calls within the same test run.
+_TEST_DB_FILE = tempfile.mktemp(suffix=".test.db")
+atexit.register(lambda: os.unlink(_TEST_DB_FILE) if os.path.exists(_TEST_DB_FILE) else None)
+
 fake_config = types.ModuleType("config")
-fake_config.DB_NAME = ":memory:"
-fake_config.logger = MagicMock()
-fake_config.SYSTEM_PROMPT = "You are Navalny"
-fake_config.BUTTON_PROMPTS = {}
-fake_config.BOT_STATE = {"is_paused": False, "mute_until": 0}
-fake_config.ADMIN_PASSWORD = "secret"
-fake_config.VIP_USERS = set()
-fake_config.BOT_INFO = {"id": 999, "username": "navalny_bot"}
-fake_config.USER_MESSAGE_LOGS = defaultdict(list)
-fake_config.LIMIT_WINDOW = 60
-fake_config.LIMIT_MESSAGES = 5
-fake_config.bot = AsyncMock()
-fake_config.client = AsyncMock()
+fake_config.DB_NAME              = _TEST_DB_FILE
+fake_config.logger               = MagicMock()
+fake_config.SYSTEM_PROMPT        = "You are Navalny"
+fake_config.BUTTON_PROMPTS       = {"chat": "short", "news": "", "joke": "", "merch": "",
+                                    "food": "", "complaint": "", "leaks": "", "vision_comment": "", "sud": ""}
+fake_config.ERROR_FALLBACK_TEXT  = "FALLBACK"
+fake_config.BOT_STATE            = {"is_paused": False, "mute_until": 0}
+fake_config.ADMIN_PASSWORD       = "secret"
+fake_config.VIP_USERS            = set()
+fake_config.BOT_INFO             = {"id": 999, "username": "navalny_bot"}
+fake_config.USER_MESSAGE_LOGS    = defaultdict(list)
+fake_config.LIMIT_WINDOW         = 60
+fake_config.LIMIT_MESSAGES       = 5
+fake_config.USER_AUDIO_LOGS      = {}
+fake_config.AUDIO_LIMIT_WINDOW   = 1800
+fake_config.ZVUKOGRAM_TOKEN      = "zvuk_tok"
+fake_config.ZVUKOGRAM_EMAIL      = "test@mail.com"
+fake_config.ZVUKOGRAM_VOICE      = "TestVoice"
+fake_config.ROUTERAI_API_KEY     = "fake_key"
+fake_config.bot                  = AsyncMock()
+fake_config.client               = AsyncMock()
 sys.modules["config"] = fake_config
 
 from database import (
@@ -55,7 +70,12 @@ from database import (
 
 @pytest.fixture(autouse=True)
 async def fresh_db():
-    """Инициализация чистой БД перед каждым тестом."""
+    """Чистая БД перед каждым тестом: DROP + CREATE."""
+    import aiosqlite
+    async with aiosqlite.connect(fake_config.DB_NAME) as db:
+        await db.execute("DROP TABLE IF EXISTS user_contexts")
+        await db.execute("DROP TABLE IF EXISTS users")
+        await db.commit()
     await init_db()
     yield
 
@@ -208,11 +228,16 @@ class TestUsers:
 class TestThrottlingMiddleware:
     def _make_middleware(self):
         from middlewares.throttling import ThrottlingMiddleware
-        fake_config.USER_MESSAGE_LOGS = defaultdict(list)
+        # clear() keeps the same object; reassigning would break the module's
+        # already-imported reference to USER_MESSAGE_LOGS
+        fake_config.USER_MESSAGE_LOGS.clear()
         return ThrottlingMiddleware()
 
     def _make_message(self, user_id=1, chat_type="private", text="hello"):
-        msg = MagicMock()
+        from aiogram.types import Message
+        # spec=Message makes isinstance(msg, Message) return True via _spec_class,
+        # which is required for middleware branches that call event.reply().
+        msg = MagicMock(spec=Message)
         msg.from_user = MagicMock(id=user_id)
         msg.chat = MagicMock(type=chat_type)
         msg.text = text
@@ -249,15 +274,17 @@ class TestThrottlingMiddleware:
     async def test_vip_bypasses_throttle(self):
         mw = self._make_middleware()
         user_id = 88
-        fake_config.VIP_USERS = {user_id}
+        # Patch the module-level VIP_USERS that the middleware has already imported;
+        # reassigning fake_config.VIP_USERS would not affect the bound reference.
+        import middlewares.throttling as throttle_mod
         fake_config.USER_MESSAGE_LOGS[user_id] = [time.time()] * 100
 
         handler = AsyncMock(return_value="ok")
         msg = self._make_message(user_id=user_id)
         data = {"event_from_user": MagicMock(id=user_id)}
-        result = await mw(handler, msg, data)
+        with patch.object(throttle_mod, "VIP_USERS", {user_id}):
+            result = await mw(handler, msg, data)
         assert result == "ok"
-        fake_config.VIP_USERS = set()
 
     @pytest.mark.asyncio
     async def test_old_timestamps_cleaned(self):
@@ -365,7 +392,7 @@ class TestLimitsMiddleware:
 class TestCommandHandlers:
     def _make_message(self, user_id=1, text="/start", chat_type="private"):
         msg = MagicMock()
-        msg.from_user = MagicMock(id=user_id, username="u", full_name="User")
+        msg.from_user = MagicMock(id=user_id, username="u", full_name="User", is_bot=False)
         msg.chat = MagicMock(type=chat_type)
         msg.text = text
         msg.answer = AsyncMock()
