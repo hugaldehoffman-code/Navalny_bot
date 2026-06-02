@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import Router
 from aiogram.types import InlineQuery, InlineQueryResultArticle, InputTextMessageContent, ChosenInlineResult, InlineKeyboardMarkup, InlineKeyboardButton
 from config import bot, client, logger, SYSTEM_PROMPT, BUTTON_PROMPTS, ERROR_FALLBACK_TEXT
@@ -76,20 +77,23 @@ async def chosen_inline_result_handler(chosen_result: ChosenInlineResult):
         {"role": "system", "content": SYSTEM_PROMPT + "\n" + BUTTON_PROMPTS["chat"]},
         {"role": "user", "content": query_text}
     ]
-    try:
-        response = await client.chat.completions.create(
-            model="deepseek-v4-flash",
-            messages=messages,
-            max_tokens=250,
-            temperature=0.7
-        )
-        ai_reply = response.choices[0].message.content
-    except Exception as e:
-        logger.error(f"Inline AI error: {e}")
-        ai_reply = ERROR_FALLBACK_TEXT
-
-    if not ai_reply or not str(ai_reply).strip():
-        ai_reply = ERROR_FALLBACK_TEXT
+    ai_reply = ERROR_FALLBACK_TEXT
+    for attempt in range(3):
+        try:
+            response = await client.chat.completions.create(
+                model="deepseek-v4-flash",
+                messages=messages,
+                max_tokens=400,
+                temperature=0.7,
+            )
+            ai_reply = response.choices[0].message.content or ERROR_FALLBACK_TEXT
+            break
+        except Exception as e:
+            if attempt < 2:
+                logger.warning(f"Inline AI attempt {attempt + 1}/3 failed: {e}. Retry in {attempt + 1}s")
+                await asyncio.sleep(float(attempt + 1))
+            else:
+                logger.error(f"Inline AI error after 3 attempts: {e}")
 
     final_text = f"<b>Запрос:</b> <i>{query_text}</i>\n\n😎 <b>Навальный:</b> {ai_reply}"
 

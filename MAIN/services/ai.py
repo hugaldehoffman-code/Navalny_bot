@@ -1,3 +1,4 @@
+import asyncio
 import re
 import time
 import base64
@@ -154,7 +155,7 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
 async def generate_response(
     user_id: int,
     system_addition: str = "",
-    max_tokens: int = 250,
+    max_tokens: int = 400,
     tariff_name: str = "FREE",
 ) -> str:
     """Генерирует ответ через AI с учётом тарифа (выбор модели)."""
@@ -162,20 +163,26 @@ async def generate_response(
     context = await get_context(user_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT + "\n" + system_addition}]
     messages.extend(context)
-    try:
-        response = await client.chat.completions.create(
-            model=tariff.text_model,
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=0.7,
-        )
-        res_text = response.choices[0].message.content
-        if not res_text or not res_text.strip():
-            return ERROR_FALLBACK_TEXT
-        return res_text
-    except Exception as e:
-        logger.error(f"Error generating response: {e}")
-        return ERROR_FALLBACK_TEXT
+    for attempt in range(3):
+        try:
+            response = await client.chat.completions.create(
+                model=tariff.text_model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.7,
+            )
+            res_text = response.choices[0].message.content
+            if not res_text or not res_text.strip():
+                return ERROR_FALLBACK_TEXT
+            return res_text
+        except Exception as e:
+            if attempt < 2:
+                wait = float(attempt + 1)
+                logger.warning(f"generate_response attempt {attempt + 1}/3 failed: {e}. Retry in {wait}s")
+                await asyncio.sleep(wait)
+            else:
+                logger.error(f"generate_response failed after 3 attempts: {e}")
+                return ERROR_FALLBACK_TEXT
 
 
 # ═════════════════════════════════════════════
@@ -196,7 +203,7 @@ async def process_ai_reply(
     message: Message,
     system_addition: str,
     trigger_text: str,
-    max_tokens: int = 250,
+    max_tokens: int = 400,
     tariff_name: str = None,
 ) -> None:
     if tariff_name is None:
