@@ -81,7 +81,7 @@ async def chosen_inline_result_handler(chosen_result: ChosenInlineResult):
     for attempt in range(3):
         try:
             response = await client.chat.completions.create(
-                model="deepseek-v4-flash",
+                model="deepseek/deepseek-v4-flash",
                 messages=messages,
                 max_tokens=500,
                 temperature=0.7,
