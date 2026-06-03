@@ -121,7 +121,8 @@ async def help_command(message: Message):
         f"• /sud — Ответь на сообщение, чтобы устроить суд.\n\n"
         f"<b>💰 Монетизация:</b>\n"
         f"• /buy — Купить VIP-доступ за Telegram Stars.\n"
-        f"• /tariff — Информация о тарифах и ценах."
+        f"• /tariff — Информация о тарифах и ценах.\n"
+        f"• /donate — Поддержать бота (25 ⭐)."
     )
 
     await message.answer(msg, parse_mode="HTML")
@@ -560,9 +561,41 @@ async def successful_payment_handler(message: Message):
                 f"Используй /help чтобы посмотреть свои новые возможности.",
                 parse_mode="HTML",
             )
+    elif payload == "donate_25":
+        username = message.from_user.username or message.from_user.full_name
+        logger.info(f"Донат 25⭐ от {username} (id={message.from_user.id})")
+        await message.answer(
+            "❤️ <b>Спасибо за донат!</b>\n\n"
+            "25 звёзд получены. Это идёт на поддержку серверов и API — "
+            "то есть прямо на то, чтобы Цифровой Навальный оставался в эфире.\n\n"
+            "<i>Моя фамилия — На-валь-ный. И я это ценю.</i>",
+            parse_mode="HTML",
+        )
     else:
         logger.warning(f"Неизвестный payload инвойса: {payload}")
         await message.answer(
             "✅ Платёж получен, спасибо! Используй /help для проверки статуса.",
             parse_mode="HTML",
         )
+
+
+@router.message(Command("donate"))
+async def donate_command(message: Message):
+    """Добровольный донат 25 звёзд на поддержку бота."""
+    try:
+        await bot.send_invoice(
+            chat_id=message.from_user.id,
+            title="❤️ Поддержать бота",
+            description=(
+                "Добровольный донат на поддержку серверов и API. "
+                "Никаких дополнительных возможностей — просто спасибо."
+            ),
+            payload="donate_25",
+            provider_token="",
+            currency="XTR",
+            prices=[LabeledPrice(label="Донат", amount=25)],
+            start_parameter="donate",
+        )
+    except Exception as e:
+        logger.error(f"Ошибка при создании доната: {e}")
+        await message.reply("Не удалось выставить счёт. Попробуй позже.")
