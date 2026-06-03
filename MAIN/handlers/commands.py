@@ -6,7 +6,10 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, PreCheckoutQuery, LabeledPrice
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from config import bot, client, logger, SYSTEM_PROMPT, BUTTON_PROMPTS, BOT_STATE, ADMIN_PASSWORD
+from config import (
+    bot, client, logger, SYSTEM_PROMPT, BUTTON_PROMPTS, BOT_STATE, ADMIN_PASSWORD,
+    USER_FACTCHECK_LOGS, FACTCHECK_DAILY_LIMIT_FREE, FACTCHECK_DAILY_LIMIT_VIP,
+)
 from database import (
     save_context,
     get_or_create_user,
@@ -133,25 +136,24 @@ async def actions_command(message: Message):
 async def tariff_command(message: Message):
     """Информация о всех доступных тарифах и ценах."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="⭐ Купить VIP Lite (30 дн) — 149 ⭐", callback_data="buy_vip_lite_30")
-    builder.button(text="⭐ Купить VIP Lite (90 дн) — 299 ⭐", callback_data="buy_vip_lite_90")
-    builder.button(text="👑 Купить VIP Pro (30 дн) — 399 ⭐", callback_data="buy_vip_pro_30")
-    builder.button(text="👑 Купить VIP Pro (90 дн) — 1099 ⭐", callback_data="buy_vip_pro_90")
+    builder.button(text="⭐ Купить VIP (30 дн) — 99 ⭐", callback_data="buy_vip_lite_30")
+    builder.button(text="⭐ Купить VIP (90 дн) — 249 ⭐", callback_data="buy_vip_lite_90")
     builder.adjust(1)
 
     msg = (
         f"💰 <b>Тарифы Цифрового Навального 2.0</b>\n\n"
         f"🎟 <b>Бесплатный (Free)</b> — 0 ⭐\n"
-        f"• 20 текстовых запросов в день\n"
-        f"• 5 медиа-запросов в день\n\n"
-        f"⭐ <b>VIP Lite</b> — 149 ⭐ / 30 дней  или  299 ⭐ / 90 дней\n"
-        f"• 100 текстовых запросов в день\n"
-        f"• 20 медиа-запросов в день\n"
-        f"• Фактчекинг, генератор постов\n\n"
-        f"👑 <b>VIP Pro</b> — 399 ⭐ / 30 дней  или  1099 ⭐ / 90 дней\n"
-        f"• ♾ Безлимит на всё\n"
-        f"• Топовые AI-модели\n"
-        f"• Глубокий анализ документов\n\n"
+        f"• 50 текстовых запросов в день\n"
+        f"• 7 медиа-запросов в день\n"
+        f"• 🎙 Голос — 1 раз в 30 мин\n"
+        f"• 🔍 Фактчекинг — 3 в день\n\n"
+        f"⭐ <b>VIP</b> — 99 ⭐ / 30 дней  или  249 ⭐ / 90 дней\n"
+        f"• ♾ Безлимитное общение\n"
+        f"• ♾ Безлимитные медиа\n"
+        f"• 🎙 Голос — 1 раз в 5 мин\n"
+        f"• 🔍 Фактчекинг — 20 в день\n"
+        f"• 📝 Генератор постов\n"
+        f"• 📑 Анализ документов\n\n"
         f"1 ⭐ ≈ 1.5–2 ₽. Оплата через Telegram Stars.\n"
         f"Выбери тариф и нажми кнопку ниже 👇"
     )
@@ -202,6 +204,20 @@ async def factcheck_command(message: Message):
         )
         return
 
+    # Проверяем дневной лимит фактчекинга
+    now = time.time()
+    day_ago = now - 86400
+    logs = [t for t in USER_FACTCHECK_LOGS[user_id] if t > day_ago]
+    USER_FACTCHECK_LOGS[user_id] = logs
+    fc_limit = FACTCHECK_DAILY_LIMIT_VIP if tariff_name == "VIP_LITE" else FACTCHECK_DAILY_LIMIT_FREE
+    if len(logs) >= fc_limit:
+        upgrade_hint = "" if tariff_name == "VIP_LITE" else "\n\nС тарифом <b>VIP</b> лимит — 20 проверок в день. /tariff"
+        await message.reply(
+            f"🔍 Лимит фактчекинга на сегодня исчерпан ({fc_limit} из {fc_limit}).{upgrade_hint}",
+            parse_mode="HTML"
+        )
+        return
+
     placeholder = await message.reply(
         "🔍 <i>Запускаю проверку фактов... Это займёт около минуты.</i>",
         parse_mode="HTML"
@@ -243,6 +259,7 @@ async def factcheck_command(message: Message):
             pass
 
     result = await factcheck_task
+    USER_FACTCHECK_LOGS[user_id].append(time.time())
     try:
         await bot.edit_message_text(
             chat_id=placeholder.chat.id,
@@ -427,8 +444,6 @@ async def control_command(message: Message):
 _PAYMENT_CALLBACK_TO_TARIFF = {
     "buy_vip_lite_30": ("VIP_LITE", 30),
     "buy_vip_lite_90": ("VIP_LITE", 90),
-    "buy_vip_pro_30": ("VIP_PRO", 30),
-    "buy_vip_pro_90": ("VIP_PRO", 90),
 }
 
 
@@ -476,25 +491,24 @@ async def buy_vip_callback(callback):
 async def tariff_info_callback(callback):
     """Показать информацию о тарифах через callback."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="⭐ Купить VIP Lite (30 дн) — 149 ⭐", callback_data="buy_vip_lite_30")
-    builder.button(text="⭐ Купить VIP Lite (90 дн) — 299 ⭐", callback_data="buy_vip_lite_90")
-    builder.button(text="👑 Купить VIP Pro (30 дн) — 399 ⭐", callback_data="buy_vip_pro_30")
-    builder.button(text="👑 Купить VIP Pro (90 дн) — 1099 ⭐", callback_data="buy_vip_pro_90")
+    builder.button(text="⭐ Купить VIP (30 дн) — 99 ⭐", callback_data="buy_vip_lite_30")
+    builder.button(text="⭐ Купить VIP (90 дн) — 249 ⭐", callback_data="buy_vip_lite_90")
     builder.adjust(1)
 
     msg = (
         f"💰 <b>Тарифы Цифрового Навального 2.0</b>\n\n"
         f"🎟 <b>Бесплатный (Free)</b> — 0 ⭐\n"
-        f"• 20 текстовых запросов в день\n"
-        f"• 5 медиа-запросов в день\n\n"
-        f"⭐ <b>VIP Lite</b> — 149 ⭐ / 30 дней  или  299 ⭐ / 90 дней\n"
-        f"• 100 текстовых запросов в день\n"
-        f"• 20 медиа-запросов в день\n"
-        f"• Фактчекинг, генератор постов\n\n"
-        f"👑 <b>VIP Pro</b> — 399 ⭐ / 30 дней  или  1099 ⭐ / 90 дней\n"
-        f"• ♾ Безлимит на всё\n"
-        f"• Топовые AI-модели\n"
-        f"• Глубокий анализ документов\n\n"
+        f"• 50 текстовых запросов в день\n"
+        f"• 7 медиа-запросов в день\n"
+        f"• 🎙 Голос — 1 раз в 30 мин\n"
+        f"• 🔍 Фактчекинг — 3 в день\n\n"
+        f"⭐ <b>VIP</b> — 99 ⭐ / 30 дней  или  249 ⭐ / 90 дней\n"
+        f"• ♾ Безлимитное общение\n"
+        f"• ♾ Безлимитные медиа\n"
+        f"• 🎙 Голос — 1 раз в 5 мин\n"
+        f"• 🔍 Фактчекинг — 20 в день\n"
+        f"• 📝 Генератор постов\n"
+        f"• 📑 Анализ документов\n\n"
         f"1 ⭐ ≈ 1.5–2 ₽. Оплата через Telegram Stars.\n"
         f"Выбери тариф и нажми кнопку ниже 👇"
     )

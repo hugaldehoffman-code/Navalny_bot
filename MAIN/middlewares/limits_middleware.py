@@ -141,8 +141,7 @@ class LimitsMiddleware(BaseMiddleware):
         limit_label = "Текстовых запросов" if limit_type == "text" else "Медиа-запросов"
 
         builder = InlineKeyboardBuilder()
-        builder.button(text="⭐ VIP Lite — 149 ⭐ (30 дней)", callback_data="buy_vip_lite_30")
-        builder.button(text="👑 VIP Pro — 399 ⭐ (30 дней)", callback_data="buy_vip_pro_30")
+        builder.button(text="⭐ VIP — 99 ⭐ (30 дней)", callback_data="buy_vip_lite_30")
         builder.button(text="📋 Подробнее о тарифах", callback_data="tariff_info")
         builder.adjust(1)
 
@@ -150,8 +149,7 @@ class LimitsMiddleware(BaseMiddleware):
             f"{limit_label} на сегодня исчерпаны ({limit_value} из {limit_value}).\n\n"
             f"Твой тариф: <b>{TARIFFS[current_tariff].name_ru}</b>\n\n"
             f"Чтобы продолжить прямо сейчас, апгрейднись до VIP:\n"
-            f"⭐ <b>VIP Lite</b> — 149 ⭐ / 30 дней (до 100 текстовых и 20 медиа)\n"
-            f"👑 <b>VIP Pro</b> — 399 ⭐ / 30 дней (безлимит + анализ документов)\n\n"
+            f"⭐ <b>VIP</b> — 99 ⭐ / 30 дней (безлимит на всё + анализ документов)\n\n"
             f"1 ⭐ ≈ 1.5–2 ₽. Принимаются Telegram Stars."
         )
 

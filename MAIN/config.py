@@ -83,7 +83,12 @@ LIMIT_MESSAGES = 10
 LIMIT_WINDOW = 300  # 5 минут в секундах
 
 USER_AUDIO_LOGS = {}
-AUDIO_LIMIT_WINDOW = 1800  # 30 минут в секундах
+AUDIO_LIMIT_WINDOW = 1800      # 30 минут — для FREE
+AUDIO_LIMIT_WINDOW_VIP = 300   # 5 минут — для VIP
+
+USER_FACTCHECK_LOGS = defaultdict(list)  # user_id -> [timestamps за последние 24ч]
+FACTCHECK_DAILY_LIMIT_FREE = 3
+FACTCHECK_DAILY_LIMIT_VIP = 20
 
 # Глобальные данные о боте (заполнятся при старте)
 BOT_INFO = {"id": "8555615800", "username": "navalniy_chat_bot"}

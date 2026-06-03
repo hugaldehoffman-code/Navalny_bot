@@ -19,7 +19,7 @@ class Tariff:
 
 
 # ═════════════════════════════════════════════
-# ТРИ УРОВНЯ ДОСТУПА
+# ДВА УРОВНЯ ДОСТУПА: FREE и VIP
 # ═════════════════════════════════════════════
 
 TARIFFS: dict[str, Tariff] = {
@@ -31,32 +31,18 @@ TARIFFS: dict[str, Tariff] = {
         vision_model="qwen/qwen3.5-flash-02-23",
         vision_fallback_models=["google/gemini-2.0-flash"],
         features=[
-            "💬 Базовое общение",
+            "💬 Базовое общение (50 в день)",
             "📰 Комментарий к новостям",
             "⚡️ Панчлайны / чёрный юмор",
-            "🖼 Распознавание картинок (5 в день)",
+            "🖼 Распознавание картинок (7 в день)",
+            "🎙 Голосовые ответы (1 раз в 30 мин)",
+            "🔍 Фактчекинг (3 в день)",
         ],
     ),
     "VIP_LITE": Tariff(
-        name_ru="⭐ VIP Lite (Премиум 1)",
-        daily_text_limit=200,
-        daily_media_limit=20,
-        text_model="deepseek/deepseek-v4-flash",
-        vision_model="qwen/qwen3.5-flash-02-23",
-        vision_fallback_models=["google/gemini-2.0-flash", "openai/o4-mini"],
-        features=[
-            "💬 Общение (до 100 запросов/день)",
-            "📰 Комментарий к новостям",
-            "⚡️ Панчлайны / чёрный юмор",
-            "🖼 Распознавание картинок (20 в день)",
-            "🔍 Фактчекинг: проверка новостей",
-            "📝 Генератор сатирических постов",
-        ],
-    ),
-    "VIP_PRO": Tariff(
-        name_ru="👑 VIP Pro (Премиум 2)",
-        daily_text_limit=-1,   # безлимит
-        daily_media_limit=-1,  # безлимит
+        name_ru="⭐ VIP",
+        daily_text_limit=-1,
+        daily_media_limit=-1,
         text_model="deepseek/deepseek-v4-flash",
         vision_model="qwen/qwen3.5-flash-02-23",
         vision_fallback_models=["google/gemini-2.0-flash", "openai/o4-mini"],
@@ -65,9 +51,10 @@ TARIFFS: dict[str, Tariff] = {
             "📰 Комментарий к новостям",
             "⚡️ Панчлайны / чёрный юмор",
             "🖼 Безлимитное распознавание картинок",
-            "🔍 Фактчекинг: проверка новостей",
-            "📝 Генератор сатирических постов/расследований",
-            "📑 Глубокий анализ документов (Vision/Text)",
+            "🎙 Голосовые ответы (1 раз в 5 мин)",
+            "🔍 Фактчекинг (20 в день)",
+            "📝 Генератор сатирических постов",
+            "📑 Глубокий анализ документов",
         ],
     ),
 }
@@ -79,12 +66,8 @@ TARIFFS: dict[str, Tariff] = {
 
 STARS_PRICES: dict[str, dict[str, int]] = {
     "VIP_LITE": {
-        "30_days": 149,    # ⭐ за 30 дней
-        "90_days": 299,    # ⭐ за 90 дней
-    },
-    "VIP_PRO": {
-        "30_days": 399,    # ⭐ за 30 дней
-        "90_days": 1099,   # ⭐ за 90 дней
+        "30_days": 99,    # ⭐ за 30 дней
+        "90_days": 249,   # ⭐ за 90 дней (~17% скидка)
     },
 }
 

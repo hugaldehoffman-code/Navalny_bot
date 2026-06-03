@@ -9,7 +9,8 @@ from typing import Optional
 
 from config import (
     client, bot, logger, ZVUKOGRAM_TOKEN, ZVUKOGRAM_EMAIL, ZVUKOGRAM_VOICE,
-    SYSTEM_PROMPT, ERROR_FALLBACK_TEXT, VIP_USERS, USER_AUDIO_LOGS, AUDIO_LIMIT_WINDOW, BUTTON_PROMPTS,
+    SYSTEM_PROMPT, ERROR_FALLBACK_TEXT, VIP_USERS, USER_AUDIO_LOGS,
+    AUDIO_LIMIT_WINDOW, AUDIO_LIMIT_WINDOW_VIP, BUTTON_PROMPTS,
     ROUTERAI_API_KEY
 )
 from database import save_context, get_context, get_or_create_user, check_and_reset_daily_limits, expire_premium_if_needed
@@ -221,11 +222,12 @@ async def process_ai_reply(
         if user_id not in VIP_USERS:
             current_time = time.time()
             last_audio_time = USER_AUDIO_LOGS.get(user_id, 0)
-            if current_time - last_audio_time < AUDIO_LIMIT_WINDOW:
-                left_time = int(AUDIO_LIMIT_WINDOW - (current_time - last_audio_time))
+            window = AUDIO_LIMIT_WINDOW_VIP if tariff_name != "FREE" else AUDIO_LIMIT_WINDOW
+            if current_time - last_audio_time < window:
+                left_time = int(window - (current_time - last_audio_time))
                 await message.reply(
                     f"Камон, генерировать голос слишком дорого для ФБК! "
-                    f"Следующее аудио можно заказать через {left_time // 60} мин. А пока держи ответ текстом."
+                    f"Следующее аудио можно заказать через {left_time // 60} мин {left_time % 60} сек. А пока держи ответ текстом."
                 )
                 wants_voice = False
             else:
