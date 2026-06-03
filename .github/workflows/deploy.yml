@@ -21,6 +21,7 @@ jobs:
             cp MAIN/navalny_bot.db /tmp/navalny_bot.db.bak 2>/dev/null || true
             git rm --cached MAIN/.env MAIN/navalny_bot.db 2>/dev/null || true
             rm -f MAIN/.env MAIN/navalny_bot.db .gitignore
+            git remote set-url origin https://github.com/hugaldehoffman-code/Navalny_bot.git
             git -c http.proxy=${{ secrets.GIT_PROXY_URL }} pull
             cp /tmp/.env.bak MAIN/.env 2>/dev/null || true
             cp /tmp/navalny_bot.db.bak MAIN/navalny_bot.db 2>/dev/null || true
