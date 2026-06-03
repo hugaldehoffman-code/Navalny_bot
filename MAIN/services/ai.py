@@ -188,6 +188,33 @@ async def generate_response(
 
 
 # ═════════════════════════════════════════════
+#  ОБРЕЗКА ДО 2 ПРЕДЛОЖЕНИЙ
+# ═════════════════════════════════════════════
+
+def trim_to_two_sentences(text: str) -> str:
+    """
+    Обрезает текст до 2 предложений.
+    Пропускает HTML-ответы (factcheck, news и т.д.).
+    """
+    if not text:
+        return text
+    # Если есть HTML-теги — не трогаем (это спецответы)
+    if "<b>" in text or "<i>" in text or "<a " in text or "<code>" in text:
+        return text
+    # Ищем границы предложений: [.!?] + пробел + заглавная буква ИЛИ конец строки
+    # Исключаем многоточие (...) и распространённые сокращения
+    pattern = re.compile(
+        r'(?<!\.)(?<!\.\.)([.!?])'   # точка/! /? не после .. или ...
+        r'(?=\s+[А-ЯЁA-Z«"(—\-]'    # за которой идёт заглавная
+        r'|\s*$)'                     # или конец строки
+    )
+    positions = [m.end() for m in pattern.finditer(text)]
+    if len(positions) >= 2:
+        return text[:positions[1]].strip()
+    return text.strip()
+
+
+# ═════════════════════════════════════════════
 #  ОБРАБОТЧИК AI ОТВЕТОВ (единая точка входа)
 # ═════════════════════════════════════════════
 
@@ -245,6 +272,9 @@ async def process_ai_reply(
 
     if not response_text or not response_text.strip():
         response_text = ERROR_FALLBACK_TEXT
+
+    # Принудительно обрезаем до 2 предложений (HTML-ответы пропускаются внутри функции)
+    response_text = trim_to_two_sentences(response_text)
 
     if wants_voice:
         await bot.send_chat_action(chat_id=message.chat.id, action="record_voice")
