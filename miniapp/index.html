@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Реальный или нейросеть?</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Стартовый экран ── -->
+    <div id="screen-start" class="screen active">
+      <div class="start-top">
+        <div class="logo">⚖️</div>
+        <h1>Реальный<br>или нейросеть?</h1>
+        <p class="subtitle">Отличи настоящий законопроект российских депутатов от придуманного искусственным интеллектом</p>
+        <div class="meta-row">
+          <div class="meta-item"><span class="meta-val">10</span><span class="meta-label">вопросов</span></div>
+          <div class="meta-sep">·</div>
+          <div class="meta-item"><span class="meta-val">15с</span><span class="meta-label">на ответ</span></div>
+          <div class="meta-sep">·</div>
+          <div class="meta-item"><span class="meta-val">150</span><span class="meta-label">макс. очков</span></div>
+        </div>
+      </div>
+      <div class="start-bottom">
+        <button id="btn-start" class="btn btn-yellow">Начать игру</button>
+        <button id="btn-lb-start" class="btn btn-ghost">🏆 Таблица лидеров</button>
+      </div>
+    </div>
+
+    <!-- ── Игровой экран ── -->
+    <div id="screen-game" class="screen">
+      <div class="game-top">
+        <div class="game-header">
+          <span class="q-counter">Вопрос <b id="q-num">1</b> / 10</span>
+          <span class="score-badge">⭐ <b id="score">0</b></span>
+        </div>
+        <div class="progress-track">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <div class="timer-row">
+          <div class="timer-track">
+            <div id="timer-fill" class="timer-fill"></div>
+          </div>
+          <span id="timer-text" class="timer-text">15</span>
+        </div>
+      </div>
+
+      <div id="bill-card" class="bill-card">
+        <span class="bill-tag">ЗАКОНОПРОЕКТ</span>
+        <h2 id="bill-title"></h2>
+        <p id="bill-desc"></p>
+      </div>
+
+      <div id="answer-reveal" class="answer-reveal hidden">
+        <div id="answer-verdict" class="answer-verdict"></div>
+        <div id="answer-explanation" class="answer-explanation"></div>
+        <button id="btn-next" class="btn btn-yellow next-btn">Следующий →</button>
+      </div>
+
+      <div id="answer-buttons" class="answer-buttons">
+        <button id="btn-real" class="btn-ans btn-real">✅ Реальный</button>
+        <button id="btn-fake" class="btn-ans btn-fake">🤖 Нейросеть</button>
+      </div>
+    </div>
+
+    <!-- ── Экран результата ── -->
+    <div id="screen-result" class="screen">
+      <div class="result-top">
+        <div id="result-emoji" class="result-emoji"></div>
+        <h2 id="result-title" class="result-title"></h2>
+        <p id="result-desc" class="result-desc"></p>
+      </div>
+      <div class="result-score-block">
+        <span id="final-score" class="final-score">0</span>
+        <span class="final-score-label">очков</span>
+      </div>
+      <div class="result-stats">
+        <div class="result-stat green">
+          <span id="correct-count" class="rs-val">0</span>
+          <span class="rs-label">правильных</span>
+        </div>
+        <div class="result-stat red">
+          <span id="wrong-count" class="rs-val">0</span>
+          <span class="rs-label">ошибок</span>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button id="btn-share" class="btn btn-yellow">📤 Поделиться</button>
+        <button id="btn-play-again" class="btn btn-ghost">🔄 Сыграть ещё раз</button>
+        <button id="btn-lb-result" class="btn btn-ghost">🏆 Таблица лидеров</button>
+      </div>
+    </div>
+
+    <!-- ── Таблица лидеров ── -->
+    <div id="screen-leaderboard" class="screen">
+      <div class="lb-header">
+        <button id="btn-back" class="btn-back">← Назад</button>
+        <h2 class="lb-title">🏆 Лидеры</h2>
+      </div>
+      <div id="lb-list" class="lb-list"></div>
+    </div>
+
+  </div>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

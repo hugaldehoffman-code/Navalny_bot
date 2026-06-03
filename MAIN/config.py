@@ -90,6 +90,9 @@ USER_FACTCHECK_LOGS = defaultdict(list)  # user_id -> [timestamps за посл�
 FACTCHECK_DAILY_LIMIT_FREE = 3
 FACTCHECK_DAILY_LIMIT_VIP = 20
 
+# URL Mini App (задать в .env как MINIAPP_URL=https://... после деплоя)
+MINIAPP_URL = os.getenv("MINIAPP_URL", "")
+
 # Глобальные данные о боте (заполнятся при старте)
 BOT_INFO = {"id": "8555615800", "username": "navalniy_chat_bot"}
 

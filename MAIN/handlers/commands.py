@@ -122,7 +122,9 @@ async def help_command(message: Message):
         f"<b>💰 Монетизация:</b>\n"
         f"• /buy — Купить VIP-доступ за Telegram Stars.\n"
         f"• /tariff — Информация о тарифах и ценах.\n"
-        f"• /donate — Поддержать бота (25 ⭐)."
+        f"• /donate — Поддержать бота (25 ⭐).\n\n"
+        f"<b>🎮 Игры:</b>\n"
+        f"• /game — «Реальный или нейросеть?» — отличи законопроект депутата от придуманного ИИ."
     )
 
     await message.answer(msg, parse_mode="HTML")
@@ -131,6 +133,29 @@ async def help_command(message: Message):
 @router.message(Command("actions"))
 async def actions_command(message: Message):
     await message.answer("Выбери, что ты хочешь сделать:", reply_markup=create_main_keyboard())
+
+
+@router.message(Command("game"))
+async def game_command(message: Message):
+    """Открыть мини-игру «Реальный или нейросеть?»."""
+    from config import MINIAPP_URL
+    if not MINIAPP_URL:
+        await message.answer(
+            "🎮 <b>Реальный или нейросеть?</b>\n\n"
+            "Игра ещё не развёрнута, но скоро будет!\n"
+            "Следи за обновлениями."
+        )
+        return
+
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🎮 Играть", web_app={"url": MINIAPP_URL})
+    builder.adjust(1)
+    await message.answer(
+        "🎮 <b>Реальный или нейросеть?</b>\n\n"
+        "Отличи настоящий законопроект российских депутатов от придуманного искусственным интеллектом.\n\n"
+        "10 вопросов · 15 секунд на ответ · таблица лидеров",
+        reply_markup=builder.as_markup(),
+    )
 
 
 @router.message(Command("tariff"))
