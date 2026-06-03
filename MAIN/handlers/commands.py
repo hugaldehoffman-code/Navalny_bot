@@ -3,7 +3,7 @@ import time
 import asyncio
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, PreCheckoutQuery, LabeledPrice
+from aiogram.types import Message, PreCheckoutQuery, LabeledPrice, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import (
@@ -139,23 +139,26 @@ async def actions_command(message: Message):
 async def game_command(message: Message):
     """Открыть мини-игру «Реальный или нейросеть?»."""
     from config import MINIAPP_URL
+
+    game_text = (
+        "🎮 <b>Реальный или нейросеть?</b>\n\n"
+        "Отличи настоящий законопроект российских депутатов от придуманного ИИ.\n\n"
+        "10 вопросов · 15 секунд на ответ · таблица лидеров"
+    )
+
     if not MINIAPP_URL:
-        await message.answer(
-            "🎮 <b>Реальный или нейросеть?</b>\n\n"
-            "Игра ещё не развёрнута, но скоро будет!\n"
-            "Следи за обновлениями."
-        )
+        await message.answer("🎮 <b>Реальный или нейросеть?</b>\n\nИгра ещё не развёрнута, но скоро будет!")
         return
 
     builder = InlineKeyboardBuilder()
-    builder.button(text="🎮 Играть", web_app={"url": MINIAPP_URL})
+    if message.chat.type == "private":
+        # В личном чате — нативная WebApp кнопка
+        builder.button(text="🎮 Играть", web_app=WebAppInfo(url=MINIAPP_URL))
+    else:
+        # В группах web_app кнопки запрещены — даём ссылку
+        builder.button(text="🎮 Открыть игру", url=MINIAPP_URL)
     builder.adjust(1)
-    await message.answer(
-        "🎮 <b>Реальный или нейросеть?</b>\n\n"
-        "Отличи настоящий законопроект российских депутатов от придуманного искусственным интеллектом.\n\n"
-        "10 вопросов · 15 секунд на ответ · таблица лидеров",
-        reply_markup=builder.as_markup(),
-    )
+    await message.answer(game_text, reply_markup=builder.as_markup())
 
 
 @router.message(Command("tariff"))

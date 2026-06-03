@@ -27,7 +27,7 @@ from database import (
 from tariffs import TARIFFS, STARS_PRICES, get_tariff
 
 # Сервисные команды, которые не расходуют лимит
-SERVICE_COMMANDS = {"/start", "/help", "/actions", "/control", "/sud", "/pay", "/buy", "/tariff"}
+SERVICE_COMMANDS = {"/start", "/help", "/actions", "/control", "/sud", "/pay", "/buy", "/tariff", "/game"}
 
 
 class LimitsMiddleware(BaseMiddleware):
