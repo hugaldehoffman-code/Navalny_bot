@@ -176,7 +176,7 @@ async def generate_response(
             res_text = response.choices[0].message.content
             if not res_text or not res_text.strip():
                 return ERROR_FALLBACK_TEXT
-            return res_text
+            return trim_to_two_sentences(res_text)
         except Exception as e:
             if attempt < 2:
                 wait = float(attempt + 1)
