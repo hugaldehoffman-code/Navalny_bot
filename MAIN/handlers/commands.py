@@ -133,10 +133,10 @@ async def actions_command(message: Message):
 async def tariff_command(message: Message):
     """Информация о всех доступных тарифах и ценах."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="⭐ Купить VIP Lite (30 дн) — 299 ⭐", callback_data="buy_vip_lite_30")
-    builder.button(text="⭐ Купить VIP Lite (90 дн) — 699 ⭐", callback_data="buy_vip_lite_90")
-    builder.button(text="👑 Купить VIP Pro (30 дн) — 599 ⭐", callback_data="buy_vip_pro_30")
-    builder.button(text="👑 Купить VIP Pro (90 дн) — 1399 ⭐", callback_data="buy_vip_pro_90")
+    builder.button(text="⭐ Купить VIP Lite (30 дн) — 149 ⭐", callback_data="buy_vip_lite_30")
+    builder.button(text="⭐ Купить VIP Lite (90 дн) — 299 ⭐", callback_data="buy_vip_lite_90")
+    builder.button(text="👑 Купить VIP Pro (30 дн) — 399 ⭐", callback_data="buy_vip_pro_30")
+    builder.button(text="👑 Купить VIP Pro (90 дн) — 1099 ⭐", callback_data="buy_vip_pro_90")
     builder.adjust(1)
 
     msg = (
@@ -144,11 +144,11 @@ async def tariff_command(message: Message):
         f"🎟 <b>Бесплатный (Free)</b> — 0 ⭐\n"
         f"• 20 текстовых запросов в день\n"
         f"• 5 медиа-запросов в день\n\n"
-        f"⭐ <b>VIP Lite</b> — 299 ⭐ / 30 дней  или  699 ⭐ / 90 дней\n"
+        f"⭐ <b>VIP Lite</b> — 149 ⭐ / 30 дней  или  299 ⭐ / 90 дней\n"
         f"• 100 текстовых запросов в день\n"
         f"• 20 медиа-запросов в день\n"
         f"• Фактчекинг, генератор постов\n\n"
-        f"👑 <b>VIP Pro</b> — 599 ⭐ / 30 дней  или  1399 ⭐ / 90 дней\n"
+        f"👑 <b>VIP Pro</b> — 399 ⭐ / 30 дней  или  1099 ⭐ / 90 дней\n"
         f"• ♾ Безлимит на всё\n"
         f"• Топовые AI-модели\n"
         f"• Глубокий анализ документов\n\n"
