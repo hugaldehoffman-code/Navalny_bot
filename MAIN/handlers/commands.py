@@ -124,7 +124,7 @@ async def help_command(message: Message):
         f"• /tariff — Информация о тарифах и ценах.\n"
         f"• /donate — Поддержать бота (25 ⭐).\n\n"
         f"<b>🎮 Игры:</b>\n"
-        f"• /game — «Реальный или нейросеть?» — отличи законопроект депутата от придуманного ИИ."
+        f"• /game — «Реальный или нейросеть?» и «Навальный vs ОМОН» — два мини-приложения."
     )
 
     await message.answer(msg, parse_mode="HTML")
@@ -137,28 +137,29 @@ async def actions_command(message: Message):
 
 @router.message(Command("game"))
 async def game_command(message: Message):
-    """Открыть мини-игру «Реальный или нейросеть?»."""
+    """Открыть мини-игры."""
     from config import MINIAPP_URL
 
     game_text = (
-        "🎮 <b>Реальный или нейросеть?</b>\n\n"
-        "Отличи настоящий законопроект российских депутатов от придуманного ИИ.\n\n"
-        "10 вопросов · 15 секунд на ответ · таблица лидеров"
+        "🎮 <b>Мини-игры</b>\n\n"
+        "🧠 <b>Реальный или нейросеть?</b> — отличи законопроект депутата от придуманного ИИ.\n\n"
+        "🏃 <b>Навальный vs ОМОН</b> — бесконечный раннер, перепрыгивай щиты и дубинки."
     )
 
     if not MINIAPP_URL:
-        await message.answer("🎮 <b>Реальный или нейросеть?</b>\n\nИгра ещё не развёрнута, но скоро будет!")
+        await message.answer("🎮 Игры ещё не развёрнуты, но скоро будут!", parse_mode="HTML")
         return
 
+    runner_url = MINIAPP_URL.rstrip('/') + '/runner.html'
     builder = InlineKeyboardBuilder()
     if message.chat.type == "private":
-        # В личном чате — нативная WebApp кнопка
-        builder.button(text="🎮 Играть", web_app=WebAppInfo(url=MINIAPP_URL))
+        builder.button(text="🧠 Реальный или нейросеть?", web_app=WebAppInfo(url=MINIAPP_URL))
+        builder.button(text="🏃 Навальный vs ОМОН",       web_app=WebAppInfo(url=runner_url))
     else:
-        # В группах web_app кнопки запрещены — даём ссылку
-        builder.button(text="🎮 Открыть игру", url=MINIAPP_URL)
+        builder.button(text="🧠 Реальный или нейросеть?", url=MINIAPP_URL)
+        builder.button(text="🏃 Навальный vs ОМОН",       url=runner_url)
     builder.adjust(1)
-    await message.answer(game_text, reply_markup=builder.as_markup())
+    await message.answer(game_text, reply_markup=builder.as_markup(), parse_mode="HTML")
 
 
 @router.message(Command("tariff"))
