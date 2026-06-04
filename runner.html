@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Навальный vs ОМОН</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --yellow: #FFD600;
+      --bg: #0C0C0C;
+      --card: #161616;
+      --text: #FFFFFF;
+      --muted: #777777;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+    }
+    #wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* HUD: score bar */
+    #hud {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: env(safe-area-inset-top, 10px) 16px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    #score  { font-size: 21px; font-weight: 800; color: var(--yellow); letter-spacing: 0.5px; }
+    #record { font-size: 13px; color: var(--muted); }
+
+    /* Idle hint */
+    #hint {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 20%;
+      background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.55) 100%);
+      pointer-events: none;
+    }
+    .hint-title {
+      font-size: 24px;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 6px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    }
+    .hint-sub {
+      font-size: 14px;
+      color: rgba(255,255,255,0.7);
+      text-align: center;
+    }
+    .hint-tap {
+      margin-top: 20px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--yellow);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+
+    /* Game over overlay */
+    #gameover {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(4px);
+    }
+    #gameover.show { display: flex; }
+    .over-icon  { font-size: 56px; line-height: 1; }
+    .over-title { font-size: 26px; font-weight: 900; margin-top: 4px; }
+    .over-dist  { font-size: 52px; font-weight: 900; color: var(--yellow); line-height: 1.1; margin-top: 6px; }
+    .over-label { font-size: 13px; color: var(--muted); }
+    .over-rec   { font-size: 15px; color: var(--muted); margin-top: 2px; }
+    #btn-restart {
+      margin-top: 28px;
+      padding: 15px 52px;
+      background: var(--yellow);
+      color: #000;
+      border: none;
+      border-radius: 16px;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    #btn-restart:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+<div id="wrapper">
+  <canvas id="c"></canvas>
+
+  <div id="hud">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="score">0 м</span>
+      <span id="mult-badge" style="display:none;background:#FFD600;color:#000;font-size:11px;font-weight:900;padding:2px 8px;border-radius:10px;line-height:1.4">×2</span>
+    </div>
+    <span id="record">Рекорд: 0 м</span>
+  </div>
+
+  <div id="hint">
+    <div class="hint-title">Навальный vs ОМОН</div>
+    <div class="hint-sub">Перепрыгивай башни, решётки и повестки</div>
+    <div class="hint-tap">▶ Нажми, чтобы начать</div>
+  </div>
+
+  <div id="gameover">
+    <div class="over-icon">🚔</div>
+    <div class="over-title">Поймали!</div>
+    <div class="over-dist" id="over-dist">0 м</div>
+    <div class="over-label">пробежал</div>
+    <div class="over-rec" id="over-rec">Рекорд: 0 м</div>
+    <button id="btn-restart">Снова</button>
+  </div>
+</div>
+
+<script src="runner.js"></script>
+</body>
+</html>
