@@ -233,28 +233,38 @@ function drawPlayer() {
   ctx.fillRect(cx - 22, py + 12 + as, 3, 6);
   ctx.fillRect(cx + 19, py + 12 - as, 3, 6);
 
-  // ── Голова ──
-  ctx.fillStyle = '#F0B899';
+  // ── Голова (зелёная — отсылка на нападение с зелёнкой) ──
+  ctx.fillStyle = '#56C45A';
   ctx.beginPath();
   ctx.arc(cx, py, 13, 0, Math.PI * 2);
   ctx.fill();
 
-  // ── Тёмные волосы (зачёс набок) ──
-  ctx.fillStyle = '#3A2418';
+  // ── Тёмные волосы: характерный зачёс Навального (пробор слева, челя вправо) ──
+  ctx.fillStyle = '#2B1A0C';
+  // Основная масса волос — верхняя часть
+  ctx.fillRect(cx - 13, py - 14, 26, 12);
+  // Дуга по бокам
   ctx.beginPath();
-  ctx.arc(cx + 1, py - 5, 11, Math.PI, Math.PI * 2);
+  ctx.arc(cx, py - 5, 12, Math.PI * 1.1, Math.PI * 1.9);
   ctx.fill();
-  ctx.fillRect(cx - 11, py - 6, 23, 7);    // чёлка
-  ctx.fillRect(cx - 13, py - 2, 4, 6);     // левый висок
-  ctx.fillRect(cx + 7,  py - 14, 7, 5);    // зачёс вправо (характерно!)
+  // Правый висок (зачёс)
+  ctx.fillRect(cx + 5,  py - 6,  8,  7);
+  // Левый висок (короче)
+  ctx.fillRect(cx - 13, py - 5,  6,  5);
+  // Пробор — светлая полоска слева
+  ctx.fillStyle = '#56C45A';
+  ctx.fillRect(cx - 5,  py - 14, 2,  10);
+  // Чёлка зачёсана вправо (тёмная, перекрывает пробор справа)
+  ctx.fillStyle = '#2B1A0C';
+  ctx.fillRect(cx - 3,  py - 14, 15,  6);
 
-  // ── Брови (решительные) ──
-  ctx.fillStyle = '#3A2418';
-  ctx.fillRect(cx - 7, py - 7, 5, 2);
-  ctx.fillRect(cx + 2, py - 7, 5, 2);
+  // ── Брови (решительные, густые) ──
+  ctx.fillStyle = '#2B1A0C';
+  ctx.fillRect(cx - 8, py - 6, 6, 2);
+  ctx.fillRect(cx + 2, py - 6, 6, 2);
 
   // ── Глаза ──
-  ctx.fillStyle = '#222';
+  ctx.fillStyle = '#1A1A1A';
   ctx.fillRect(cx - 6, py - 3, 4, 3);
   ctx.fillRect(cx + 2, py - 3, 4, 3);
 
@@ -273,95 +283,143 @@ function drawPlayer() {
 function drawObs(o) {
 
   if (o.type === 'kremlin') {
-    // Основание башни (тёмно-красный кирпич)
+    const midX = o.x + o.w / 2;
+
+    // === Кирпичное основание ===
     ctx.fillStyle = '#8B1A1A';
-    ctx.fillRect(o.x, o.y + 16, o.w, o.h - 16);
+    ctx.fillRect(o.x, o.y + 22, o.w, o.h - 22);
+    // Горизонтальные линии кладки
+    ctx.fillStyle = '#6B1212';
+    for (let ky = o.y + 28; ky < o.y + o.h; ky += 9)
+      ctx.fillRect(o.x, ky, o.w, 2);
+    // Бойница
+    ctx.fillStyle = '#2D0000';
+    const loopW = Math.floor(o.w * 0.3), loopH = Math.floor(o.h * 0.26);
+    ctx.fillRect(midX - loopW / 2, o.y + 34, loopW, loopH);
 
-    // Горизонтальные линии кирпичной кладки
-    ctx.fillStyle = '#6B1414';
-    for (let by = o.y + 22; by < o.y + o.h; by += 10)
-      ctx.fillRect(o.x, by, o.w, 2);
-
-    // Зубцы (мерлоны) — 3 штуки
-    const mw = Math.floor(o.w / 4);
+    // === Зубцы (3 мерлона + 2 прогала) ===
+    const tW   = Math.floor(o.w * 0.22);
+    const tGap = Math.floor((o.w - tW * 3) / 4);
     ctx.fillStyle = '#8B1A1A';
-    for (let i = 0; i < 3; i++) {
-      ctx.fillRect(o.x + i * mw + 2, o.y, mw - 2, 18);
-      ctx.fillStyle = '#6B1414';
-      ctx.fillRect(o.x + i * mw + 2, o.y + 9, mw - 2, 2);
-      ctx.fillStyle = '#8B1A1A';
-    }
+    for (let i = 0; i < 3; i++)
+      ctx.fillRect(o.x + tGap + i * (tW + tGap), o.y + 10, tW, 14);
+    ctx.fillStyle = '#2D0000';
+    for (let i = 0; i < 2; i++)
+      ctx.fillRect(o.x + tGap + tW + i * (tW + tGap), o.y + 10, tGap, 14);
 
-    // Бойница в башне (тёмный прямоугольник)
-    ctx.fillStyle = '#3d0000';
-    ctx.fillRect(o.x + Math.floor(o.w * 0.3), o.y + 28, Math.floor(o.w * 0.4), Math.floor(o.h * 0.3));
-
-    // Кремлёвская звезда
-    ctx.fillStyle = '#FFD600';
-    starPath(o.x + o.w / 2, o.y - 10, 10);
+    // === Шатровая крыша (конус — характерная черта башен Кремля) ===
+    ctx.fillStyle = '#B03030';
+    ctx.beginPath();
+    ctx.moveTo(midX, o.y - 2);          // острие шатра
+    ctx.lineTo(o.x - 2, o.y + 12);      // левый край
+    ctx.lineTo(o.x + o.w + 2, o.y + 12);// правый край
+    ctx.closePath();
     ctx.fill();
-    // Блик на звезде
-    ctx.fillStyle = '#FFF9';
-    starPath(o.x + o.w / 2 - 1, o.y - 11, 4);
+    // Тёмная грань шатра (объём)
+    ctx.fillStyle = '#7A1E1E';
+    ctx.beginPath();
+    ctx.moveTo(midX, o.y - 2);
+    ctx.lineTo(midX, o.y + 12);
+    ctx.lineTo(o.x + o.w + 2, o.y + 12);
+    ctx.closePath();
+    ctx.fill();
+
+    // === Рубиновая звезда ===
+    ctx.fillStyle = '#FF2020';
+    starPath(midX, o.y - 12, 9);
+    ctx.fill();
+    // Жёлтый ободок вокруг звезды
+    ctx.strokeStyle = '#FFD600';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Блик
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    starPath(midX - 1, o.y - 13, 3.5);
     ctx.fill();
 
   } else if (o.type === 'bars') {
-    // Фон за решёткой (тёмный)
-    ctx.fillStyle = '#111';
-    ctx.fillRect(o.x + 3, o.y + 5, o.w - 6, o.h - 5);
+    // Надпись «СИЗО-6» над дверью
+    ctx.fillStyle = '#FFD600';
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('СИЗО-6', o.x + o.w / 2, o.y - 3);
 
-    // Верхняя и нижняя поперечины
-    ctx.fillStyle = '#5A5A5A';
-    ctx.fillRect(o.x, o.y,          o.w, 7);
-    ctx.fillRect(o.x, o.y + o.h - 5, o.w, 5);
+    // Верхняя балка
+    ctx.fillStyle = '#606060';
+    ctx.fillRect(o.x, o.y, o.w, 7);
+    // Нижняя балка
+    ctx.fillRect(o.x, o.y + o.h - 6, o.w, 6);
+    // Левая и правая стойка рамки
+    ctx.fillRect(o.x,          o.y, 5, o.h);
+    ctx.fillRect(o.x + o.w - 5, o.y, 5, o.h);
 
-    // Вертикальные прутья (4 штуки) с бликом
-    const cnt  = 4;
-    const barW = 7;
-    const gapX = (o.w - barW * cnt) / (cnt + 1);
-    for (let i = 0; i < cnt; i++) {
-      const bx = o.x + gapX + i * (barW + gapX);
-      ctx.fillStyle = '#5A5A5A';
-      ctx.fillRect(bx, o.y, barW, o.h);
-      // Блик (металлический)
-      ctx.fillStyle = '#8A8A8A';
-      ctx.fillRect(bx + 1, o.y, 2, o.h);
+    // Горизонтальная перекладина посередине
+    ctx.fillStyle = '#484848';
+    const midH = Math.floor(o.h * 0.44);
+    ctx.fillRect(o.x + 5, o.y + midH, o.w - 10, 5);
+
+    // Вертикальные прутья (4 шт.) — видно насквозь (фон не заливаем)
+    const bCnt = 4;
+    const bW   = 6;
+    const bGap = (o.w - 10 - bW * bCnt) / (bCnt + 1);
+    for (let i = 0; i < bCnt; i++) {
+      const bx2 = o.x + 5 + bGap + i * (bW + bGap);
+      ctx.fillStyle = '#585858';
+      ctx.fillRect(bx2, o.y + 7, bW, o.h - 13);
+      // Металлический блик (светлая полоска слева)
+      ctx.fillStyle = '#888';
+      ctx.fillRect(bx2 + 1, o.y + 7, 2, o.h - 13);
     }
 
-    // Надпись «СИЗО» на верхней поперечине
-    ctx.fillStyle = '#999';
-    ctx.font = 'bold 7px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('СИЗО', o.x + o.w / 2, o.y + 3.5);
-    ctx.textBaseline = 'alphabetic';
+    // Замок (жёлтый квадрат + дужка)
+    const lkX = o.x + (o.w - 10) / 2;
+    const lkY = o.y + o.h - 6 - 11;
+    ctx.fillStyle = '#C8A000';
+    ctx.fillRect(lkX, lkY, 10, 9);
+    ctx.fillStyle = '#1A1A1A';
+    ctx.fillRect(lkX + 3, lkY + 3, 4, 5);   // замочная скважина
+    ctx.strokeStyle = '#C8A000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(lkX + 5, lkY, 4, Math.PI, Math.PI * 2);
+    ctx.stroke();
 
   } else if (o.type === 'papers') {
     // Три слоя бумаг (чуть смещены)
-    const layers = ['#C8BC88', '#DDD3A0', '#F2ECC8'];
+    const layers = ['#C0B480', '#D8CC98', '#EEE4BC'];
     for (let i = 2; i >= 0; i--) {
       ctx.fillStyle = layers[i];
-      ctx.fillRect(o.x + i * 3, o.y + i * 3, o.w - i * 2, o.h - i * 2);
+      ctx.fillRect(o.x + i * 3, o.y + i * 2, o.w - i * 3, o.h - i * 2);
     }
 
-    // Линии текста
-    ctx.fillStyle = '#B0A06A';
-    for (let ly = o.y + 8; ly < o.y + o.h - 4; ly += 7)
-      ctx.fillRect(o.x + 6, ly, o.w - 20, 1);
+    // Заголовок «ДЕЛО №»
+    ctx.fillStyle = '#5C4A18';
+    ctx.font = 'bold 7px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('ДЕЛО №', o.x + 5, o.y + 3);
 
-    // Красный штамп «СУДИ!» под углом
-    ctx.save();
-    ctx.translate(o.x + o.w * 0.64, o.y + o.h * 0.48);
-    ctx.rotate(-0.38);
-    ctx.strokeStyle = 'rgba(180,0,0,0.88)';
+    // Горизонтальные линии «текста»
+    ctx.fillStyle = '#A8966A';
+    for (let ly = o.y + 13; ly < o.y + o.h - 14; ly += 5)
+      ctx.fillRect(o.x + 5, ly, o.w - 14, 1);
+
+    // Большой красный штамп «ВИНОВЕН» — горизонтально, без поворота
+    const sX = o.x + 4;
+    const sY = o.y + o.h - 15;
+    const sW = o.w - 8;
+    const sH = 12;
+    ctx.fillStyle = 'rgba(185,0,0,0.18)';
+    ctx.fillRect(sX, sY, sW, sH);
+    ctx.strokeStyle = 'rgba(185,0,0,0.92)';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(-17, -9, 34, 18);
-    ctx.fillStyle = 'rgba(180,0,0,0.88)';
+    ctx.strokeRect(sX, sY, sW, sH);
+    ctx.fillStyle = 'rgba(185,0,0,0.92)';
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('СУДИ!', 0, 1);
-    ctx.restore();
+    ctx.fillText('ВИНОВЕН', sX + sW / 2, sY + sH / 2);
     ctx.textBaseline = 'alphabetic';
   }
 }
