@@ -156,7 +156,7 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
 async def generate_response(
     user_id: int,
     system_addition: str = "",
-    max_tokens: int = 120,
+    max_tokens: int = 250,
     tariff_name: str = "FREE",
 ) -> str:
     """Генерирует ответ через AI с учётом тарифа (выбор модели)."""
@@ -232,7 +232,7 @@ async def process_ai_reply(
     message: Message,
     system_addition: str,
     trigger_text: str,
-    max_tokens: int = 120,
+    max_tokens: int = 250,
     tariff_name: str = None,
 ) -> None:
     if tariff_name is None:
