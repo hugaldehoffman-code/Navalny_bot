@@ -124,7 +124,9 @@ async def help_command(message: Message):
         f"• /tariff — Информация о тарифах и ценах.\n"
         f"• /donate — Поддержать бота (25 ⭐).\n\n"
         f"<b>🎮 Игры:</b>\n"
-        f"• /game — «Реальный или нейросеть?» и «Навальный vs ОМОН» — два мини-приложения."
+        f"• /game — «Реальный или нейросеть?» и «Навальный vs ОМОН» — два мини-приложения.\n\n"
+        f"<b>💬 Поддержка / предложения:</b>\n"
+        f"• <a href=\"https://t.me/anonaskbot?start=brq1glqmc2zh3v0\">Написать в поддержку</a> — вопросы, баги, идеи для новых фич."
     )
 
     await message.answer(msg, parse_mode="HTML")

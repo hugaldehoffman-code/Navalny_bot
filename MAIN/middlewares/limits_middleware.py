@@ -12,11 +12,16 @@ Middleware контроля дневных лимитов по тарифам.
 8. Если лимит исчерпан — отправляет сообщение с предложением купить VIP и останавливает обработку.
 9. Если лимит ОК — инкрементирует счётчик и передаёт объект пользователя в data["user_record"].
 """
+import datetime
+
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import VIP_USERS, BOT_INFO, logger
+
+# Временный 1.5× бонус к лимитам FREE после аварийного простоя (до 24 июня 2026)
+_PROMO_UNTIL = datetime.date(2026, 6, 24)
 from database import (
     get_or_create_user,
     check_and_reset_daily_limits,
@@ -78,20 +83,29 @@ class LimitsMiddleware(BaseMiddleware):
         tariff_name = user_record["tariff_name"]
         tariff = get_tariff(tariff_name)
 
+        # Временный промо-множитель 1.5× для FREE до _PROMO_UNTIL
+        promo_active = tariff_name == "FREE" and datetime.date.today() < _PROMO_UNTIL
+        promo_factor = 1.5 if promo_active else 1.0
+
+        def _effective_limit(base: int) -> int:
+            return int(base * promo_factor) if base != -1 else -1
+
         # 4. Определить тип запроса
         request_type = self._detect_request_type(event)
 
         # 5. Проверить лимит
         if request_type == "text":
-            if tariff.daily_text_limit != -1 and user_record["daily_text_used"] >= tariff.daily_text_limit:
-                await self._send_limit_exceeded(event, tariff_name, "text", tariff.daily_text_limit)
+            eff_limit = _effective_limit(tariff.daily_text_limit)
+            if eff_limit != -1 and user_record["daily_text_used"] >= eff_limit:
+                await self._send_limit_exceeded(event, tariff_name, "text", eff_limit)
                 return  # прерываем обработку
             await increment_text_usage(user_id)
             user_record["daily_text_used"] += 1
 
         elif request_type == "media":
-            if tariff.daily_media_limit != -1 and user_record["daily_media_used"] >= tariff.daily_media_limit:
-                await self._send_limit_exceeded(event, tariff_name, "media", tariff.daily_media_limit)
+            eff_limit = _effective_limit(tariff.daily_media_limit)
+            if eff_limit != -1 and user_record["daily_media_used"] >= eff_limit:
+                await self._send_limit_exceeded(event, tariff_name, "media", eff_limit)
                 return  # прерываем обработку
             await increment_media_usage(user_id)
             user_record["daily_media_used"] += 1
