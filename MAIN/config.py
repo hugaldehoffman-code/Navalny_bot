@@ -16,8 +16,9 @@ logger = logging.getLogger(__name__)
 # Корневая директория пакета (папка MAIN/) — работает из любого cwd
 BASE_DIR = Path(__file__).parent
 
-# Явно подгружаем .env из директории скрипта
-load_dotenv(BASE_DIR / ".env")
+# Подгружаем .env: сначала ищем в /root/navalny_data/ (вне репо), потом рядом со скриптом
+_env_external = Path("/root/navalny_data/.env")
+load_dotenv(_env_external if _env_external.exists() else BASE_DIR / ".env")
 
 # Конфигурация из окружения
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -64,8 +65,9 @@ client = AsyncOpenAI(api_key=ROUTERAI_API_KEY, base_url=ROUTERAI_BASE_URL)
 bot = Bot(token=TELEGRAM_TOKEN, session=bot_session, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 
-# Абсолютный путь к базе данных (рядом с config.py, не зависит от cwd)
-DB_NAME = str(BASE_DIR / "navalny_bot.db")
+# БД хранится вне git-репо; DB_PATH в .env переопределяет путь
+_db_external = Path("/root/navalny_data/navalny_bot.db")
+DB_NAME = os.getenv("DB_PATH", str(_db_external if _db_external.parent.exists() else BASE_DIR / "navalny_bot.db"))
 
 # Текст ошибки
 ERROR_FALLBACK_TEXT = "Камон, тут путин грыз провода, но Навальный всё равно вышел на связь! Попробуй еще раз."
