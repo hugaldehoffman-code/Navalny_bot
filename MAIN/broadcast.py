@@ -20,9 +20,11 @@ MSG = (
 
 async def main():
     import os
-    token = os.environ.get("BOT_TOKEN")
+    from dotenv import load_dotenv
+    load_dotenv()
+    token = os.environ.get("TELEGRAM_TOKEN")
     if not token:
-        raise RuntimeError("BOT_TOKEN не задан")
+        raise RuntimeError("TELEGRAM_TOKEN не задан")
 
     bot = Bot(token=token)
 
