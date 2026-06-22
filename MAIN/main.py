@@ -29,7 +29,10 @@ async def global_errors_handler(event: ErrorEvent):
     logger.error(f"Критическое исключение: {event.exception}", exc_info=True)
     update = event.update
     if update.message:
-        await update.message.answer(ERROR_FALLBACK_TEXT)
+        try:
+            await update.message.answer(ERROR_FALLBACK_TEXT)
+        except Exception:
+            pass
 
 
 @dp.message(F.new_chat_members)

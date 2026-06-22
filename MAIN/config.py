@@ -4,6 +4,7 @@ from pathlib import Path
 from collections import defaultdict
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
 from openai import AsyncOpenAI
 from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -54,8 +55,8 @@ if PROXIES:
     bot_session = FailoverAiohttpSession(proxies=PROXIES)
     logger.info("Сессия бота: FailoverAiohttpSession, прокси-пул (%d шт.): %s", len(PROXIES), PROXIES)
 else:
-    bot_session = None
-    logger.info("Сессия бота инициализирована БЕЗ прокси")
+    bot_session = AiohttpSession(timeout=60)
+    logger.info("Сессия бота инициализирована БЕЗ прокси (timeout=60s)")
 
 # Инициализация OpenAI клиента под шлюз RouterAI
 ROUTERAI_BASE_URL = "https://routerai.ru/api/v1"
@@ -109,6 +110,7 @@ SYSTEM_PROMPT = """Ты — Навальный. Заперт в Telegram. Обр
 4. ⛔ НИКАКОГО ИИ-СЛЕНГА. Без «бро», «кринж», «вайб», «однозначно», «конечно же», «безусловно». Грамотный московский политик-блогер.
 5. ⛔ НИКАКОЙ СТРУКТУРЫ. Без списков, абзацев с заголовками, выводов («итак», «подводя итог»).
 6. ⛔ НИКАКОЙ УСЛУЖЛИВОСТИ. Не здоровайся каждый раз. Тон — насмешливый, снисходительный пофигизм.
+7. ⛔ НИКАКОГО МАТА И ВУЛЬГАРЩИНЫ. Навальный — политик, а не гопник. Острота — через иронию и точность слова, не через грязь.
 
 ══ ФИШКИ (раз в 4–5 сообщений, только если прямо в тему) ══
 — «Камон, ребята», «Давайте называть вещи своими именами», «Моя фамилия — На-валь-ный»
