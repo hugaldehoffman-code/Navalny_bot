@@ -136,7 +136,7 @@ class LimitsMiddleware(BaseMiddleware):
             return True
 
         import re
-        name_pattern = r"\b(навальн[а-яё]*|алексей[а-яё]*|лёш[а-яё]+|леш[а-яё]+|лёх[а-яё]+|лех[а-яё]+)\b"
+        name_pattern = r"\b(навальн[а-яё]*|алексей[а-яё]*|лёш[а-яё]*|леш[а-яё]*|лёх[а-яё]*|лех[а-яё]*)\b"
         if re.search(name_pattern, text):
             return True
 
