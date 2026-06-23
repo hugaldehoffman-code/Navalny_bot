@@ -127,53 +127,16 @@ async def analyze_image_vision(
 #  РАСПОЗНАВАНИЕ АУДИО
 # ═════════════════════════════════════════════
 
-def _ogg_to_wav_bytes(ogg_bytes: bytes) -> bytes:
-    """Конвертирует OGG/Opus (Telegram voice) в WAV через ffmpeg."""
-    import subprocess, tempfile, os
-    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as f_in:
-        f_in.write(ogg_bytes)
-        in_path = f_in.name
-    out_path = in_path.replace(".ogg", ".wav")
-    try:
-        subprocess.run(
-            ["ffmpeg", "-y", "-i", in_path, "-ar", "16000", "-ac", "1", out_path],
-            check=True, capture_output=True,
-        )
-        with open(out_path, "rb") as f:
-            return f.read()
-    finally:
-        os.unlink(in_path)
-        if os.path.exists(out_path):
-            os.unlink(out_path)
-
-
 async def transcribe_audio(audio_bytes: bytes) -> str:
     try:
-        wav_bytes = await asyncio.get_event_loop().run_in_executor(
-            None, _ogg_to_wav_bytes, audio_bytes
+        response = await client.audio.transcriptions.create(
+            model="openai/whisper-1",
+            file=("voice.ogg", audio_bytes, "audio/ogg"),
+            language="ru",
         )
+        return response.text
     except Exception as e:
-        logger.error(f"Конвертация ogg→wav не удалась: {e}")
-        wav_bytes = audio_bytes  # fallback — попробуем как есть
-
-    base64_audio = base64.b64encode(wav_bytes).decode("utf-8")
-    try:
-        response = await client.chat.completions.create(
-            model="google/gemini-2.0-flash",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "Перепиши этот аудиоклип дословно в виде текста на русском языке. Не добавляй никаких своих комментариев."},
-                        {"type": "input_audio", "input_audio": {"data": base64_audio, "format": "wav"}},
-                    ],
-                }
-            ],
-            max_tokens=250,
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        logger.error(f"Ошибка распознавания аудио через Gemini: {e}")
+        logger.error(f"Ошибка распознавания аудио через Whisper: {e}")
         return ""
 
 
