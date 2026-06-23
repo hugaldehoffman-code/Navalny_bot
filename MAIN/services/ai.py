@@ -128,15 +128,22 @@ async def analyze_image_vision(
 # ═════════════════════════════════════════════
 
 async def transcribe_audio(audio_bytes: bytes) -> str:
+    base64_audio = base64.b64encode(audio_bytes).decode("utf-8")
     try:
-        response = await client.audio.transcriptions.create(
-            model="openai/whisper-1",
-            file=("voice.ogg", audio_bytes, "audio/ogg"),
-            language="ru",
+        response = await client.chat.completions.create(
+            model="google/gemini-2.5-flash",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Транскрибируй это голосовое сообщение дословно на русском. Только текст, без комментариев."},
+                    {"type": "input_audio", "input_audio": {"data": base64_audio, "format": "ogg"}},
+                ],
+            }],
+            max_tokens=300,
         )
-        return response.text
+        return response.choices[0].message.content or ""
     except Exception as e:
-        logger.error(f"Ошибка распознавания аудио через Whisper: {e}")
+        logger.error(f"Ошибка распознавания аудио через Gemini: {e}")
         return ""
 
 
