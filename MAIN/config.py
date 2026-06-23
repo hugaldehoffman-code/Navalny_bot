@@ -55,8 +55,8 @@ if PROXIES:
     bot_session = FailoverAiohttpSession(proxies=PROXIES)
     logger.info("Сессия бота: FailoverAiohttpSession, прокси-пул (%d шт.): %s", len(PROXIES), PROXIES)
 else:
-    bot_session = AiohttpSession(timeout=60)
-    logger.info("Сессия бота инициализирована БЕЗ прокси (timeout=60s)")
+    bot_session = AiohttpSession(timeout=120)
+    logger.info("Сессия бота инициализирована БЕЗ прокси (timeout=120s)")
 
 # Инициализация OpenAI клиента под шлюз RouterAI
 ROUTERAI_BASE_URL = "https://routerai.ru/api/v1"
