@@ -1,13 +1,36 @@
+import re
 from aiogram import Router, F
 from aiogram.types import Message
-from config import bot, logger, BUTTON_PROMPTS
-# ИСПРАВЛЕНО: подтягиваем логику ИИ из папки services
+from config import bot, logger, BUTTON_PROMPTS, BOT_INFO
 from services.ai import transcribe_audio, process_ai_reply
 
 router = Router()
 
+_NAME_PATTERN = re.compile(
+    r"\b(навальн[а-яё]*|алексей[а-яё]*|лёш[а-яё]*|леш[а-яё]*|лёх[а-яё]*|лех[а-яё]*|новичк[а-яё]*)\b",
+    re.IGNORECASE,
+)
+
+def _is_addressed_to_bot(message: Message) -> bool:
+    """Голосовое адресовано боту: личка, реплай на бота, @упоминание или триггер-слово в caption."""
+    if message.chat.type == "private":
+        return True
+    if message.reply_to_message and message.reply_to_message.from_user.id == BOT_INFO.get("id"):
+        return True
+    caption = (message.caption or "").lower()
+    bot_username = BOT_INFO.get("username", "")
+    if bot_username and f"@{bot_username}".lower() in caption:
+        return True
+    if _NAME_PATTERN.search(caption):
+        return True
+    return False
+
+
 @router.message(F.voice | F.audio)
 async def voice_handler(message: Message):
+    if not _is_addressed_to_bot(message):
+        return
+
     audio_source = message.voice if message.voice else message.audio
     await bot.send_chat_action(chat_id=message.chat.id, action="typing")
     
